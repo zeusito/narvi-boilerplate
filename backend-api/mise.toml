@@ -1,0 +1,3 @@
+[tools]
+dbmate = "latest"
+golangci-lint = "latest"
