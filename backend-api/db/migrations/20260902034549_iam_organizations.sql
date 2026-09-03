@@ -18,7 +18,7 @@ create unique index if not exists idx_orgs_slug on organizations(lower(slug));
 create table if not exists organization_memberships (
     organization_id varchar(50) not null,
     identity_id varchar(50) not null,
-    role varchar(50) not null default '',
+    roles varchar(50) not null default '',
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     primary key (organization_id, identity_id),
@@ -41,7 +41,7 @@ create or replace view organization_members_view as (
        COALESCE(o.logo, '') AS organization_logo,
        COALESCE(o.kind, '') AS organization_kind,
        COALESCE(o.state, '') AS organization_state,
-       COALESCE(om.role, '') AS organization_role,
+       COALESCE(om.roles, '') AS organization_role,
        COALESCE(om.created_at, '0001-01-01'::timestamptz) AS membership_created_at,
        COALESCE(om.updated_at, '0001-01-01'::timestamptz) AS membership_updated_at
     FROM identities i

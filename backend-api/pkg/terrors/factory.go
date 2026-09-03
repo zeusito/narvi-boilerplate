@@ -73,3 +73,11 @@ func PrincipalLocked(message string) *Terror {
 		HttpStatusCode: http.StatusUnauthorized,
 	}
 }
+
+func TooManyRequests(message string) *Terror {
+	return &Terror{
+		ErrCode:        "TooManyRequests",
+		ErrMessage:     message,
+		HttpStatusCode: http.StatusTooManyRequests,
+	}
+}
