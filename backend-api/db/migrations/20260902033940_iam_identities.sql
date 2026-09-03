@@ -34,7 +34,8 @@ create table if not exists verifications (
     id varchar(100) not null,
     identity_id varchar(50) not null,
     kind varchar(50) not null default '',
-    expires_at timestamptz not null default now() + interval '24 hours',
+    attempts int not null default 0,
+    expires_at timestamptz not null default now() + interval '10 minutes',
     created_at timestamptz not null default now(),
     primary key (id),
     foreign key (identity_id) references identities(id) on delete cascade
