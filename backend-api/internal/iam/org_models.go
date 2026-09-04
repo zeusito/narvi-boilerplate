@@ -8,6 +8,7 @@ import (
 
 type OrganizationState string
 type OrganizationKind string
+type OrganizationMemberRole string
 
 const (
 	OrganizationStateActive    OrganizationState = "active"
@@ -16,6 +17,10 @@ const (
 
 	OrganizationKindStandard   OrganizationKind = "standard"
 	OrganizationKindManagement OrganizationKind = "management"
+
+	OrganizationMemberRoleOwner  OrganizationMemberRole = "owner"
+	OrganizationMemberRoleAdmin  OrganizationMemberRole = "admin"
+	OrganizationMemberRoleMember OrganizationMemberRole = "member"
 )
 
 type Organization struct {
@@ -45,20 +50,20 @@ type OrganizationMembership struct {
 type OrganizationMembershipView struct {
 	bun.BaseModel `bun:"table:organization_members_view,alias:omv"`
 
-	IdentityID          string            `bun:"identity_id,notnull"`
-	IdentityEmail       string            `bun:"identity_email,notnull"`
-	IdentityFirstName   string            `bun:"identity_first_name,notnull"`
-	IdentityLastName    string            `bun:"identity_last_name,notnull"`
-	IdentityState       IdentityState     `bun:"identity_state,notnull"`
-	IdentityCreatedAt   time.Time         `bun:"identity_created_at,notnull"`
-	IdentityUpdatedAt   time.Time         `bun:"identity_updated_at,notnull"`
-	OrganizationID      string            `bun:"organization_id,notnull"`
-	OrganizationName    string            `bun:"organization_name,notnull"`
-	OrganizationSlug    string            `bun:"organization_slug,notnull"`
-	OrganizationLogo    string            `bun:"organization_logo"`
-	OrganizationKind    OrganizationKind  `bun:"organization_kind,notnull"`
-	OrganizationState   OrganizationState `bun:"organization_state,notnull"`
-	MembershipRole      string            `bun:"membership_role,notnull"`
-	MembershipCreatedAt time.Time         `bun:"membership_created_at,notnull"`
-	MembershipUpdatedAt time.Time         `bun:"membership_updated_at,notnull"`
+	IdentityID          string                 `bun:"identity_id,notnull"`
+	IdentityEmail       string                 `bun:"identity_email,notnull"`
+	IdentityFirstName   string                 `bun:"identity_first_name,notnull"`
+	IdentityLastName    string                 `bun:"identity_last_name,notnull"`
+	IdentityState       IdentityState          `bun:"identity_state,notnull"`
+	IdentityCreatedAt   time.Time              `bun:"identity_created_at,notnull"`
+	IdentityUpdatedAt   time.Time              `bun:"identity_updated_at,notnull"`
+	OrganizationID      string                 `bun:"organization_id,notnull"`
+	OrganizationName    string                 `bun:"organization_name,notnull"`
+	OrganizationSlug    string                 `bun:"organization_slug,notnull"`
+	OrganizationLogo    string                 `bun:"organization_logo"`
+	OrganizationKind    OrganizationKind       `bun:"organization_kind,notnull"`
+	OrganizationState   OrganizationState      `bun:"organization_state,notnull"`
+	MembershipRole      OrganizationMemberRole `bun:"membership_role,notnull"`
+	MembershipCreatedAt time.Time              `bun:"membership_created_at,notnull"`
+	MembershipUpdatedAt time.Time              `bun:"membership_updated_at,notnull"`
 }

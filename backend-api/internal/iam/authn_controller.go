@@ -1,7 +1,6 @@
 package iam
 
 import (
-	"backend-api/pkg/terrors"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
@@ -11,7 +10,7 @@ type authnController struct {
 	useCases authUseCases
 }
 
-func newAuthnController(mux *echo.Echo, useCases authUseCases, middleware *authnMiddleware) *authnController {
+func newAuthnController(mux *echo.Echo, sm SessionManager, useCases authUseCases) *authnController {
 	c := &authnController{
 		useCases: useCases,
 	}
@@ -19,7 +18,7 @@ func newAuthnController(mux *echo.Echo, useCases authUseCases, middleware *authn
 	authGroup := mux.Group("/v1/auth")
 	authGroup.POST("/otp/send", c.handleSendOTP)
 	authGroup.POST("/otp/verify", c.handleVerifyOTP)
-	authGroup.GET("/introspect", c.handleIntrospect, middleware.RequireAuth)
+	authGroup.GET("/introspect", c.handleIntrospect, RequireAuth(sm))
 
 	return c
 }
@@ -34,15 +33,9 @@ func (c *authnController) handleSendOTP(ctx *echo.Context) error {
 		return echo.ErrBadRequest.Wrap(err)
 	}
 
-	resp, err := c.useCases.SendOTP(ctx, req)
-	if err != nil {
-		if tErr, ok := err.(*terrors.Terror); ok {
-			return tErr.ToEchoHttpError()
-		}
-		return echo.ErrInternalServerError.Wrap(err)
-	}
+	c.useCases.SendOTP(ctx, req)
 
-	return ctx.JSON(http.StatusOK, resp)
+	return ctx.JSON(http.StatusOK, nil)
 }
 
 func (c *authnController) handleVerifyOTP(ctx *echo.Context) error {
@@ -55,25 +48,16 @@ func (c *authnController) handleVerifyOTP(ctx *echo.Context) error {
 		return echo.ErrBadRequest.Wrap(err)
 	}
 
-	ipAddress := ctx.RealIP()
-	userAgent := ctx.Request().UserAgent()
-
-	resp, err := c.useCases.VerifyOTP(ctx, req, ipAddress, userAgent)
+	resp, err := c.useCases.VerifyOTP(ctx, req)
 	if err != nil {
-		if tErr, ok := err.(*terrors.Terror); ok {
-			return tErr.ToEchoHttpError()
-		}
-		return echo.ErrInternalServerError.Wrap(err)
+		return echo.NewHTTPError(http.StatusBadRequest, "code is not valid")
 	}
 
 	return ctx.JSON(http.StatusOK, resp)
 }
 
 func (c *authnController) handleIntrospect(ctx *echo.Context) error {
-	claims := GetPrincipal(ctx)
-	if claims == nil {
-		return terrors.UnAuthorized("unauthenticated").ToEchoHttpError()
-	}
+	claims := ExtractClaimsFromContext(ctx)
 
 	return ctx.JSON(http.StatusOK, claims)
 }

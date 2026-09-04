@@ -37,7 +37,7 @@ func (r *defaultOrganizationRepository) FindOneBySlug(ctx context.Context, slug 
 	return &org, nil
 }
 
-func (r *defaultOrganizationRepository) FindMembershipsByOrganizationID(ctx context.Context, orgID string) ([]OrganizationMembershipView, error) {
+func (r *defaultOrganizationRepository) FindAllMembershipsByOrganizationID(ctx context.Context, orgID string) ([]OrganizationMembershipView, error) {
 	var memberships []OrganizationMembershipView
 	err := r.db.NewSelect().
 		Model(&memberships).
@@ -52,7 +52,7 @@ func (r *defaultOrganizationRepository) FindMembershipsByOrganizationID(ctx cont
 	return memberships, nil
 }
 
-func (r *defaultOrganizationRepository) FindMembershipsByIdentityID(ctx context.Context, identityID string) ([]OrganizationMembershipView, error) {
+func (r *defaultOrganizationRepository) FindAllMembershipsByIdentityID(ctx context.Context, identityID string) ([]OrganizationMembershipView, error) {
 	var memberships []OrganizationMembershipView
 	err := r.db.NewSelect().
 		Model(&memberships).
@@ -65,4 +65,19 @@ func (r *defaultOrganizationRepository) FindMembershipsByIdentityID(ctx context.
 		return nil, err
 	}
 	return memberships, nil
+}
+
+func (r *defaultOrganizationRepository) FindOldestMembershipsByIdentityID(ctx context.Context, identityID string) (*OrganizationMembershipView, error) {
+	var membership OrganizationMembershipView
+	err := r.db.NewSelect().
+		Model(&membership).
+		Where("identity_id = ?", identityID).
+		Order("membership_created_at ASC").
+		Limit(1).
+		Scan(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+	return &membership, nil
 }

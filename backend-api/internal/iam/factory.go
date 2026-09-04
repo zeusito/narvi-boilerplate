@@ -9,9 +9,7 @@ import (
 )
 
 type Module struct {
-	sessionManager SessionManager
-	middleware     *authnMiddleware
-	controller     *authnController
+	SessionManager SessionManager
 }
 
 func NewModule(
@@ -21,25 +19,15 @@ func NewModule(
 	hmacHasher hasher.Hasher,
 ) *Module {
 	identityRepo := newIdentityRepository(db)
+	orgRepo := newOrganizationRepository(db)
 	verificationRepo := newVerificationRepository(db)
 	sessionRepo := newSessionRepository(db)
 
-	useCases := newAuthnUseCases(identityRepo, verificationRepo, sessionRepo, mail, hmacHasher)
+	useCases := newAuthnUseCases(orgRepo, identityRepo, verificationRepo, sessionRepo, mail, hmacHasher)
 	sessionManager := newSessionManager(useCases)
-	middleware := newAuthnMiddleware(sessionManager)
-	controller := newAuthnController(mux, useCases, middleware)
+	_ = newAuthnController(mux, sessionManager, useCases)
 
 	return &Module{
-		sessionManager: sessionManager,
-		middleware:     middleware,
-		controller:     controller,
+		SessionManager: sessionManager,
 	}
-}
-
-func (m *Module) SessionManager() SessionManager {
-	return m.sessionManager
-}
-
-func (m *Module) RequireAuth() echo.MiddlewareFunc {
-	return m.middleware.RequireAuth
 }

@@ -5,17 +5,17 @@ import (
 )
 
 type SessionManager interface {
-	Introspect(ctx *echo.Context, token string) (*PrincipalClaims, error)
+	Introspect(ctx *echo.Context, token string) *PrincipalClaims
 }
 
-type defaultSessionManager struct {
-	useCases authUseCases
+type DefaultSessionManager struct {
+	authUseCase authUseCases
 }
 
 func newSessionManager(useCases authUseCases) SessionManager {
-	return &defaultSessionManager{useCases: useCases}
+	return &DefaultSessionManager{authUseCase: useCases}
 }
 
-func (m *defaultSessionManager) Introspect(ctx *echo.Context, token string) (*PrincipalClaims, error) {
-	return m.useCases.Introspect(ctx, token)
+func (m *DefaultSessionManager) Introspect(ctx *echo.Context, token string) *PrincipalClaims {
+	return m.authUseCase.Introspect(ctx, token)
 }

@@ -7,7 +7,7 @@ create table if not exists invitations (
     last_name varchar(255) not null default '',
     target_id varchar(50) not null,
     inviter_id varchar(50) not null default '',
-    role varchar(50) not null default '',
+    member_role varchar(50) not null default '',
     state varchar(50) not null default 'pending',
     expires_at timestamptz not null default now() + interval '1 day',
     created_at timestamptz not null default now(),

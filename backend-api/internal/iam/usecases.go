@@ -6,6 +6,6 @@ import (
 
 type authUseCases interface {
 	SendOTP(ctx *echo.Context, req *SendOTPRequest)
-	VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest, ipAddress, userAgent string) (*VerifyOTPResponse, error)
-	Introspect(ctx *echo.Context, token string) (*PrincipalClaims, error)
+	VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest) (*SignInResponse, error)
+	Introspect(ctx *echo.Context, token string) *PrincipalClaims
 }

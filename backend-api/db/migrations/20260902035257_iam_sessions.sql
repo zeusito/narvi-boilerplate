@@ -28,7 +28,7 @@ create or replace view session_introspection_view as (
        COALESCE(o.name, '') AS organization_name,
        COALESCE(o.slug, '') AS organization_slug,
        COALESCE(o.logo, '') AS organization_logo,
-       COALESCE(om.roles, '') AS organization_role
+       COALESCE(om.member_role, '') AS organization_role
     FROM identity_sessions s
     JOIN identities i
        ON i.id = s.identity_id

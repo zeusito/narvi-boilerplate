@@ -9,8 +9,9 @@ type organizationRepository interface {
 	Create(ctx context.Context, org *Organization) error
 	FindOneByID(ctx context.Context, id string) (*Organization, error)
 	FindOneBySlug(ctx context.Context, slug string) (*Organization, error)
-	FindMembershipsByOrganizationID(ctx context.Context, orgID string) ([]OrganizationMembershipView, error)
-	FindMembershipsByIdentityID(ctx context.Context, identityID string) ([]OrganizationMembershipView, error)
+	FindAllMembershipsByOrganizationID(ctx context.Context, orgID string) ([]OrganizationMembershipView, error)
+	FindAllMembershipsByIdentityID(ctx context.Context, identityID string) ([]OrganizationMembershipView, error)
+	FindOldestMembershipsByIdentityID(ctx context.Context, identityID string) (*OrganizationMembershipView, error)
 }
 
 type identityRepository interface {

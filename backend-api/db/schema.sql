@@ -80,7 +80,7 @@ CREATE TABLE public.invitations (
     last_name character varying(255) DEFAULT ''::character varying NOT NULL,
     target_id character varying(50) NOT NULL,
     inviter_id character varying(50) DEFAULT ''::character varying NOT NULL,
-    role character varying(50) DEFAULT ''::character varying NOT NULL,
+    member_role character varying(50) DEFAULT ''::character varying NOT NULL,
     state character varying(50) DEFAULT 'pending'::character varying NOT NULL,
     expires_at timestamp with time zone DEFAULT (now() + '1 day'::interval) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -95,7 +95,7 @@ CREATE TABLE public.invitations (
 CREATE TABLE public.organization_memberships (
     organization_id character varying(50) NOT NULL,
     identity_id character varying(50) NOT NULL,
-    roles character varying(50) DEFAULT ''::character varying NOT NULL,
+    member_role character varying(50) DEFAULT ''::character varying NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -138,7 +138,7 @@ CREATE VIEW public.organization_members_view AS
     COALESCE(o.logo, ''::character varying) AS organization_logo,
     COALESCE(o.kind, ''::character varying) AS organization_kind,
     COALESCE(o.state, ''::character varying) AS organization_state,
-    COALESCE(om.roles, ''::character varying) AS organization_role,
+    COALESCE(om.member_role, ''::character varying) AS membership_role,
     COALESCE(om.created_at, '0001-01-01 00:00:00+00'::timestamp with time zone) AS membership_created_at,
     COALESCE(om.updated_at, '0001-01-01 00:00:00+00'::timestamp with time zone) AS membership_updated_at
    FROM ((public.identities i
@@ -171,7 +171,7 @@ CREATE VIEW public.session_introspection_view AS
     COALESCE(o.name, ''::character varying) AS organization_name,
     COALESCE(o.slug, ''::character varying) AS organization_slug,
     COALESCE(o.logo, ''::character varying) AS organization_logo,
-    COALESCE(om.roles, ''::character varying) AS organization_role
+    COALESCE(om.member_role, ''::character varying) AS organization_role
    FROM (((public.identity_sessions s
      JOIN public.identities i ON (((i.id)::text = (s.identity_id)::text)))
      LEFT JOIN public.organizations o ON (((o.id)::text = (s.organization_id)::text)))

@@ -52,7 +52,7 @@ func (u *authnUseCases) SendOTP(ctx *echo.Context, req *SendOTPRequest) {
 	}
 
 	// Check 60-second cooldown on recent active verification
-	activeVerification, err := u.verificationRepo.FindLatestActive(ctx.Request().Context(), identity.ID, VerificationKindEmailOTP)
+	activeVerification, _ := u.verificationRepo.FindLatestActive(ctx.Request().Context(), identity.ID, VerificationKindEmailOTP)
 	if activeVerification != nil && time.Since(activeVerification.CreatedAt) < 60*time.Second {
 		log.Error().Str("traceId", traceId).Msg("verification request too frequent")
 		return
@@ -99,7 +99,7 @@ func (u *authnUseCases) SendOTP(ctx *echo.Context, req *SendOTPRequest) {
 	}
 }
 
-func (u *authnUseCases) VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest, ipAddress, userAgent string) (*VerifyOTPResponse, error) {
+func (u *authnUseCases) VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest) (*SignInResponse, error) {
 	traceId := toolbox.GetTraceId(ctx)
 	now := time.Now().UTC()
 
@@ -137,28 +137,14 @@ func (u *authnUseCases) VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest, ipAd
 	_ = u.identityRepo.UpdateEmailVerifiedAt(ctx.Request().Context(), identity.ID, now)
 
 	// Resolve default organization membership (earliest created)
-	memberships, err := u.identityRepo.FindMembershipsByIdentityID(ctx.Request().Context(), identity.ID)
+	oldestMembership, err := u.orgRepo.FindOldestMembershipsByIdentityID(ctx.Request().Context(), identity.ID)
 	if err != nil {
 		return nil, err
 	}
-
-	var activeOrgDTO *ActiveOrganizationDTO
-	var activeOrgID *string
-	if len(memberships) > 0 {
-		primaryOrgID := memberships[0].OrganizationID
-		org, err := u.identityRepo.FindOrganizationByID(ctx.Request().Context(), primaryOrgID)
-		if err != nil {
-			return nil, err
-		}
-		if org != nil {
-			org.Role = memberships[0].Role
-			activeOrgDTO = org
-			activeOrgID = &primaryOrgID
-		}
-	}
+	activeOrgID := &oldestMembership.OrganizationID
 
 	// Create session with opaque token
-	token, hashedToken, err := toolbox.GenerateOpaqueToken(u.hmacHasher, "tok")
+	token, hashedToken, err := toolbox.GenerateOpaqueToken(u.hmacHasher, "ses")
 	if err != nil {
 		return nil, terrors.OperationFailed("failed to generate session token")
 	}
@@ -167,58 +153,43 @@ func (u *authnUseCases) VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest, ipAd
 		ID:             hashedToken,
 		IdentityID:     identity.ID,
 		OrganizationID: activeOrgID,
-		IPAddress:      ipAddress,
-		UserAgent:      userAgent,
-		ExpiresAt:      time.Now().Add(24 * time.Hour),
-		CreatedAt:      time.Now(),
+		IPAddress:      req.IPAddress,
+		UserAgent:      req.UserAgent,
+		ExpiresAt:      now.Add(24 * time.Hour),
+		CreatedAt:      now,
 	}
 
-	if err := u.sessionRepo.Create(ctx, session); err != nil {
+	if err := u.sessionRepo.Create(ctx.Request().Context(), session); err != nil {
 		return nil, err
 	}
 
-	pendingInvs, err := u.identityRepo.FindPendingInvitationsByEmail(ctx, identity.Email)
-	if err != nil {
-		return nil, err
-	}
-
-	return &VerifyOTPResponse{
-		Token: token,
-		Identity: IdentityDTO{
-			ID:        identity.ID,
-			Email:     identity.Email,
-			FirstName: identity.FirstName,
-			LastName:  identity.LastName,
-			State:     identity.State,
-		},
-		ActiveOrganization: activeOrgDTO,
-		PendingInvitations: pendingInvs,
+	return &SignInResponse{
+		Token:     token,
+		ExpiresIn: int(24 * time.Hour / time.Second),
 	}, nil
 }
 
-func (u *authnUseCases) Introspect(ctx *echo.Context, token string) (*PrincipalClaims, error) {
+func (u *authnUseCases) Introspect(ctx *echo.Context, token string) *PrincipalClaims {
 	hashedToken, err := u.hmacHasher.Hash(token)
 	if err != nil {
-		return nil, terrors.UnAuthorized("invalid token")
+		return &PrincipalClaims{IsAuthenticated: false}
 	}
 
-	view, err := u.sessionRepo.FindActiveSessionIntrospection(ctx.Request().Context(), hashedToken)
+	record, err := u.sessionRepo.FindActiveSessionIntrospection(ctx.Request().Context(), hashedToken)
 	if err != nil {
-		return nil, err
-	}
-	if view == nil {
-		return nil, terrors.UnAuthorized("session is invalid or expired")
+		return &PrincipalClaims{IsAuthenticated: false}
 	}
 
 	return &PrincipalClaims{
-		SessionID:            view.SessionID,
-		IdentityID:           view.IdentityID,
-		Email:                view.IdentityEmail,
-		FullName:             fmt.Sprintf("%s %s", view.IdentityFirstName, view.IdentityLastName),
-		ActiveOrganizationID: view.OrganizationID,
-		OrganizationName:     view.OrganizationName,
-		OrganizationSlug:     view.OrganizationSlug,
-		OrganizationLogo:     view.OrganizationLogo,
-		OrganizationRole:     view.OrganizationRole,
-	}, nil
+		IsAuthenticated:      true,
+		SessionID:            record.SessionID,
+		IdentityID:           record.IdentityID,
+		Email:                record.IdentityEmail,
+		FullName:             fmt.Sprintf("%s %s", record.IdentityFirstName, record.IdentityLastName),
+		ActiveOrganizationID: record.OrganizationID,
+		OrganizationName:     record.OrganizationName,
+		OrganizationSlug:     record.OrganizationSlug,
+		OrganizationLogo:     record.OrganizationLogo,
+		OrganizationRole:     record.OrganizationRole,
+	}
 }
