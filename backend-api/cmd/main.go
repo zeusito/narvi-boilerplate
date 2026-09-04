@@ -39,14 +39,10 @@ func main() {
 	dbPool := database.MustCreatePooledConnection(configStore.Database)
 
 	// Mailer
-	mailService := mailer.NewFakeMailer()
+	mailService := mailer.NewResendMailer(configStore.Email)
 
 	// Hasher
-	hmacSecret := configStore.Iam.HmacSecret
-	if hmacSecret == "" {
-		hmacSecret = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-	}
-	hmacHasher, err := hasher.NewHmacSHA256(hmacSecret)
+	hmacHasher, err := hasher.NewHmacSHA256(configStore.Iam.HmacSecret)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error initializing HMAC hasher")
 	}

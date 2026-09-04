@@ -5,14 +5,15 @@ import (
 	"backend-api/pkg/terrors"
 	"backend-api/pkg/toolbox"
 	"backend-api/pkg/toolbox/hasher"
-	"context"
-	"crypto/rand"
 	"fmt"
-	"math/big"
 	"time"
+
+	"github.com/labstack/echo/v5"
+	"github.com/rs/zerolog/log"
 )
 
 type authnUseCases struct {
+	orgRepo          organizationRepository
 	identityRepo     identityRepository
 	verificationRepo verificationRepository
 	sessionRepo      sessionRepository
@@ -21,71 +22,61 @@ type authnUseCases struct {
 }
 
 func newAuthnUseCases(
+	orgRepo organizationRepository,
 	identityRepo identityRepository,
 	verificationRepo verificationRepository,
 	sessionRepo sessionRepository,
 	mail mailer.Mailer,
-	hmacHash hasher.Hasher,
+	hmacHasher hasher.Hasher,
 ) authUseCases {
 	return &authnUseCases{
+		orgRepo:          orgRepo,
 		identityRepo:     identityRepo,
 		verificationRepo: verificationRepo,
 		sessionRepo:      sessionRepo,
 		mailer:           mail,
-		hmacHasher:       hmacHash,
+		hmacHasher:       hmacHasher,
 	}
 }
 
-func (u *authnUseCases) SendOTP(ctx context.Context, req *SendOTPRequest) (*SendOTPResponse, error) {
-	identity, err := u.identityRepo.FindActiveByEmail(ctx, req.Email)
-	if err != nil {
-		return nil, err
-	}
+// SendOTP sends an OTP to the user's email address, it does not return an error to avoid enumeration attacks
+func (u *authnUseCases) SendOTP(ctx *echo.Context, req *SendOTPRequest) {
+	traceId := toolbox.GetTraceId(ctx)
 
-	// Anti-enumeration: if identity doesn't exist or is not active, return sent=true silently
-	if identity == nil {
-		return &SendOTPResponse{Sent: true}, nil
-	}
+	log.Info().Str("traceId", traceId).Msgf("sending OTP to email: %s", req.Email)
 
-	// Verify identity has at least 1 membership or pending invitation
-	memberships, err := u.identityRepo.FindMembershipsByIdentityID(ctx, identity.ID)
+	identity, err := u.identityRepo.FindActiveByEmail(ctx.Request().Context(), req.Email)
 	if err != nil {
-		return nil, err
-	}
-	invitations, err := u.identityRepo.FindPendingInvitationsByEmail(ctx, identity.Email)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(memberships) == 0 && len(invitations) == 0 {
-		return &SendOTPResponse{Sent: true}, nil
+		log.Error().Str("traceId", traceId).Err(err).Msg("failed to find active identity by email")
+		return
 	}
 
 	// Check 60-second cooldown on recent active verification
-	activeVerification, err := u.verificationRepo.FindLatestActive(ctx, identity.ID, VerificationKindEmailOTP)
-	if err != nil {
-		return nil, err
-	}
+	activeVerification, err := u.verificationRepo.FindLatestActive(ctx.Request().Context(), identity.ID, VerificationKindEmailOTP)
 	if activeVerification != nil && time.Since(activeVerification.CreatedAt) < 60*time.Second {
-		return nil, terrors.TooManyRequests("please wait before requesting another verification code")
+		log.Error().Str("traceId", traceId).Msg("verification request too frequent")
+		return
 	}
 
 	// Invalidate any prior pending OTPs for this identity
-	if err := u.verificationRepo.DeleteAllForIdentityAndKind(ctx, identity.ID, VerificationKindEmailOTP); err != nil {
-		return nil, err
+	if err := u.verificationRepo.DeleteAllForIdentityAndKind(ctx.Request().Context(), identity.ID, VerificationKindEmailOTP); err != nil {
+		log.Error().Str("traceId", traceId).Err(err).Msg("failed to delete all pending OTPs for identity")
+		return
 	}
 
 	// Generate 6-digit OTP
-	code, err := generateOTPCode()
+	code, err := toolbox.SecureRandomOTP(6)
 	if err != nil {
-		return nil, terrors.OperationFailed("failed to generate verification code")
+		log.Error().Str("traceId", traceId).Err(err).Msg("failed to generate OTP")
+		return
 	}
+	now := time.Now().UTC()
 
 	// Hash OTP code using HMAC-SHA256
-	hashData := fmt.Sprintf("%s:%s", identity.ID, code)
-	hashedID, err := u.hmacHasher.Hash(hashData)
+	hashedID, err := u.hmacHasher.Hash(code)
 	if err != nil {
-		return nil, terrors.OperationFailed("failed to hash verification code")
+		log.Error().Str("traceId", traceId).Err(err).Msg("failed to hash verification code")
+		return
 	}
 
 	verification := &Verification{
@@ -93,62 +84,60 @@ func (u *authnUseCases) SendOTP(ctx context.Context, req *SendOTPRequest) (*Send
 		IdentityID: identity.ID,
 		Kind:       VerificationKindEmailOTP,
 		Attempts:   0,
-		ExpiresAt:  time.Now().Add(10 * time.Minute),
-		CreatedAt:  time.Now(),
+		ExpiresAt:  now.Add(10 * time.Minute),
+		CreatedAt:  now,
 	}
 
-	if err := u.verificationRepo.Create(ctx, verification); err != nil {
-		return nil, err
+	if err := u.verificationRepo.Create(ctx.Request().Context(), verification); err != nil {
+		log.Error().Str("traceId", traceId).Err(err).Msg("failed to create verification")
+		return
 	}
 
-	if err := u.mailer.SendOTPCode(ctx, identity.Email, code); err != nil {
-		return nil, terrors.OperationFailed("failed to dispatch verification email")
+	if err := u.mailer.SendOTPCode(ctx.Request().Context(), identity.Email, code); err != nil {
+		log.Error().Str("traceId", traceId).Err(err).Msg("failed to dispatch verification email")
+		return
 	}
-
-	return &SendOTPResponse{Sent: true}, nil
 }
 
-func (u *authnUseCases) VerifyOTP(ctx context.Context, req *VerifyOTPRequest, ipAddress, userAgent string) (*VerifyOTPResponse, error) {
-	identity, err := u.identityRepo.FindActiveByEmail(ctx, req.Email)
+func (u *authnUseCases) VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest, ipAddress, userAgent string) (*VerifyOTPResponse, error) {
+	traceId := toolbox.GetTraceId(ctx)
+	now := time.Now().UTC()
+
+	log.Info().Str("traceId", traceId).Msg("verify otp...")
+
+	identity, err := u.identityRepo.FindActiveByEmail(ctx.Request().Context(), req.Email)
 	if err != nil {
 		return nil, err
-	}
-	if identity == nil {
-		return nil, terrors.UnAuthorized("invalid credentials")
 	}
 
-	v, err := u.verificationRepo.FindLatestActive(ctx, identity.ID, VerificationKindEmailOTP)
+	v, err := u.verificationRepo.FindLatestActive(ctx.Request().Context(), identity.ID, VerificationKindEmailOTP)
 	if err != nil {
 		return nil, err
-	}
-	if v == nil {
-		return nil, terrors.UnAuthorized("invalid or expired verification code")
 	}
 
 	if v.Attempts >= 3 {
-		_ = u.verificationRepo.Delete(ctx, v.ID)
+		_ = u.verificationRepo.Delete(ctx.Request().Context(), v.ID)
 		return nil, terrors.UnAuthorized("verification attempts exceeded, please request a new code")
 	}
 
-	hashData := fmt.Sprintf("%s:%s", identity.ID, req.Code)
-	if !u.hmacHasher.Verify(hashData, v.ID) {
-		_ = u.verificationRepo.IncrementAttempts(ctx, v.ID)
+	// Verify the code against the stored hash
+	if !u.hmacHasher.Verify(req.Code, v.ID) {
+		_ = u.verificationRepo.IncrementAttempts(ctx.Request().Context(), v.ID)
 		if v.Attempts+1 >= 3 {
-			_ = u.verificationRepo.Delete(ctx, v.ID)
+			_ = u.verificationRepo.Delete(ctx.Request().Context(), v.ID)
 			return nil, terrors.UnAuthorized("verification attempts exceeded, please request a new code")
 		}
 		return nil, terrors.UnAuthorized("invalid verification code")
 	}
 
 	// Code is valid: delete verification record
-	_ = u.verificationRepo.Delete(ctx, v.ID)
+	_ = u.verificationRepo.Delete(ctx.Request().Context(), v.ID)
 
 	// Mark email verified
-	now := time.Now()
-	_ = u.identityRepo.UpdateEmailVerifiedAt(ctx, identity.ID, now)
+	_ = u.identityRepo.UpdateEmailVerifiedAt(ctx.Request().Context(), identity.ID, now)
 
 	// Resolve default organization membership (earliest created)
-	memberships, err := u.identityRepo.FindMembershipsByIdentityID(ctx, identity.ID)
+	memberships, err := u.identityRepo.FindMembershipsByIdentityID(ctx.Request().Context(), identity.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +146,7 @@ func (u *authnUseCases) VerifyOTP(ctx context.Context, req *VerifyOTPRequest, ip
 	var activeOrgID *string
 	if len(memberships) > 0 {
 		primaryOrgID := memberships[0].OrganizationID
-		org, err := u.identityRepo.FindOrganizationByID(ctx, primaryOrgID)
+		org, err := u.identityRepo.FindOrganizationByID(ctx.Request().Context(), primaryOrgID)
 		if err != nil {
 			return nil, err
 		}
@@ -207,13 +196,13 @@ func (u *authnUseCases) VerifyOTP(ctx context.Context, req *VerifyOTPRequest, ip
 	}, nil
 }
 
-func (u *authnUseCases) Introspect(ctx context.Context, token string) (*PrincipalClaims, error) {
+func (u *authnUseCases) Introspect(ctx *echo.Context, token string) (*PrincipalClaims, error) {
 	hashedToken, err := u.hmacHasher.Hash(token)
 	if err != nil {
 		return nil, terrors.UnAuthorized("invalid token")
 	}
 
-	view, err := u.sessionRepo.FindActiveSessionIntrospection(ctx, hashedToken)
+	view, err := u.sessionRepo.FindActiveSessionIntrospection(ctx.Request().Context(), hashedToken)
 	if err != nil {
 		return nil, err
 	}
@@ -225,20 +214,11 @@ func (u *authnUseCases) Introspect(ctx context.Context, token string) (*Principa
 		SessionID:            view.SessionID,
 		IdentityID:           view.IdentityID,
 		Email:                view.IdentityEmail,
-		FirstName:            view.IdentityFirstName,
-		LastName:             view.IdentityLastName,
+		FullName:             fmt.Sprintf("%s %s", view.IdentityFirstName, view.IdentityLastName),
 		ActiveOrganizationID: view.OrganizationID,
 		OrganizationName:     view.OrganizationName,
 		OrganizationSlug:     view.OrganizationSlug,
 		OrganizationLogo:     view.OrganizationLogo,
 		OrganizationRole:     view.OrganizationRole,
 	}, nil
-}
-
-func generateOTPCode() (string, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%06d", n.Int64()), nil
 }

@@ -1,11 +1,11 @@
 package iam
 
 import (
-	"context"
+	"github.com/labstack/echo/v5"
 )
 
 type authUseCases interface {
-	SendOTP(ctx context.Context, req *SendOTPRequest) (*SendOTPResponse, error)
-	VerifyOTP(ctx context.Context, req *VerifyOTPRequest, ipAddress, userAgent string) (*VerifyOTPResponse, error)
-	Introspect(ctx context.Context, token string) (*PrincipalClaims, error)
+	SendOTP(ctx *echo.Context, req *SendOTPRequest)
+	VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest, ipAddress, userAgent string) (*VerifyOTPResponse, error)
+	Introspect(ctx *echo.Context, token string) (*PrincipalClaims, error)
 }

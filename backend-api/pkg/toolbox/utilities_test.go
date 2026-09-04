@@ -35,6 +35,12 @@ func TestSecureRandomInt(t *testing.T) {
 	assert.True(t, val >= 1 && val <= 10)
 }
 
+func TestSecureRandomOTP(t *testing.T) {
+	otp, err := SecureRandomOTP(6)
+	assert.NoError(t, err)
+	assert.Len(t, otp, 6)
+}
+
 func TestSanitizeEmail(t *testing.T) {
 	email := "test@example.com"
 	cleanEmail := SanitizeEmail(email)

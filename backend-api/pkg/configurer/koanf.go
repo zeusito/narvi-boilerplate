@@ -13,6 +13,7 @@ type Configurations struct {
 	Server   ServerConfigurations   `koanf:"server"`
 	Database DatabaseConfigurations `koanf:"database"`
 	Iam      IamConfigurations      `koanf:"iam"`
+	Email    EmailConfigurations    `koanf:"email"`
 }
 
 type ServerConfigurations struct {
@@ -40,6 +41,12 @@ type IamConfigurations struct {
 	OAuthRedirectURI     string `koanf:"oauth-redirect-uri"`
 	OAuthM2MClientID     string `koanf:"oauth-m2m-client-id"`
 	OAuthM2MClientSecret string `koanf:"oauth-m2m-client-secret"`
+}
+
+type EmailConfigurations struct {
+	Enabled bool   `koanf:"enabled"`
+	From    string `koanf:"from"`
+	ApiKey  string `koanf:"api-key"`
 }
 
 // LoadConfigurations Loads configurations depending upon the environment

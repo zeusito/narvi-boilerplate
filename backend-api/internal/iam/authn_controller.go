@@ -34,7 +34,7 @@ func (c *authnController) handleSendOTP(ctx *echo.Context) error {
 		return echo.ErrBadRequest.Wrap(err)
 	}
 
-	resp, err := c.useCases.SendOTP(ctx.Request().Context(), req)
+	resp, err := c.useCases.SendOTP(ctx, req)
 	if err != nil {
 		if tErr, ok := err.(*terrors.Terror); ok {
 			return tErr.ToEchoHttpError()
@@ -58,7 +58,7 @@ func (c *authnController) handleVerifyOTP(ctx *echo.Context) error {
 	ipAddress := ctx.RealIP()
 	userAgent := ctx.Request().UserAgent()
 
-	resp, err := c.useCases.VerifyOTP(ctx.Request().Context(), req, ipAddress, userAgent)
+	resp, err := c.useCases.VerifyOTP(ctx, req, ipAddress, userAgent)
 	if err != nil {
 		if tErr, ok := err.(*terrors.Terror); ok {
 			return tErr.ToEchoHttpError()

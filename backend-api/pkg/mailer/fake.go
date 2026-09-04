@@ -11,6 +11,10 @@ type FakeMailer struct {
 	mu sync.RWMutex
 }
 
+func NewFakeMailer() Mailer {
+	return &FakeMailer{}
+}
+
 func (m *FakeMailer) SendOTPCode(ctx context.Context, email, code string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

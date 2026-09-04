@@ -3,7 +3,7 @@ package iam
 import "time"
 
 type SendOTPRequest struct {
-	Email string `json:"email" validate:"required,email"`
+	Email string `json:"email" validate:"required,email,max=255"`
 }
 
 type SendOTPResponse struct {
@@ -11,16 +11,16 @@ type SendOTPResponse struct {
 }
 
 type VerifyOTPRequest struct {
-	Email string `json:"email" validate:"required,email"`
+	Email string `json:"email" validate:"required,email,max=255"`
 	Code  string `json:"code" validate:"required,len=6"`
 }
 
 type IdentityDTO struct {
-	ID        string `json:"id"`
-	Email     string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	State     string `json:"state"`
+	ID        string        `json:"id"`
+	Email     string        `json:"email"`
+	FirstName string        `json:"first_name"`
+	LastName  string        `json:"last_name"`
+	State     IdentityState `json:"state"`
 }
 
 type ActiveOrganizationDTO struct {
@@ -45,17 +45,4 @@ type VerifyOTPResponse struct {
 	Identity           IdentityDTO            `json:"identity"`
 	ActiveOrganization *ActiveOrganizationDTO `json:"active_organization"`
 	PendingInvitations []PendingInvitationDTO `json:"pending_invitations"`
-}
-
-type PrincipalClaims struct {
-	SessionID            string `json:"session_id"`
-	IdentityID           string `json:"identity_id"`
-	Email                string `json:"email"`
-	FirstName            string `json:"first_name"`
-	LastName             string `json:"last_name"`
-	ActiveOrganizationID string `json:"active_organization_id,omitempty"`
-	OrganizationName     string `json:"organization_name,omitempty"`
-	OrganizationSlug     string `json:"organization_slug,omitempty"`
-	OrganizationLogo     string `json:"organization_logo,omitempty"`
-	OrganizationRole     string `json:"organization_role,omitempty"`
 }

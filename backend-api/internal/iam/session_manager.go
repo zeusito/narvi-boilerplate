@@ -1,11 +1,11 @@
 package iam
 
 import (
-	"context"
+	"github.com/labstack/echo/v5"
 )
 
 type SessionManager interface {
-	Introspect(ctx context.Context, token string) (*PrincipalClaims, error)
+	Introspect(ctx *echo.Context, token string) (*PrincipalClaims, error)
 }
 
 type defaultSessionManager struct {
@@ -16,6 +16,6 @@ func newSessionManager(useCases authUseCases) SessionManager {
 	return &defaultSessionManager{useCases: useCases}
 }
 
-func (m *defaultSessionManager) Introspect(ctx context.Context, token string) (*PrincipalClaims, error) {
+func (m *defaultSessionManager) Introspect(ctx *echo.Context, token string) (*PrincipalClaims, error) {
 	return m.useCases.Introspect(ctx, token)
 }
