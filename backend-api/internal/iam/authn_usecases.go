@@ -65,7 +65,7 @@ func (u *authnUseCases) SendOTP(ctx *echo.Context, req *SendOTPRequest) {
 	}
 
 	// Generate 6-digit OTP
-	code, err := toolbox.SecureRandomOTP(6)
+	code, err := toolbox.SecureRandomOTP()
 	if err != nil {
 		log.Error().Str("traceId", traceId).Err(err).Msg("failed to generate OTP")
 		return
@@ -73,16 +73,17 @@ func (u *authnUseCases) SendOTP(ctx *echo.Context, req *SendOTPRequest) {
 	now := time.Now().UTC()
 
 	// Hash OTP code using HMAC-SHA256
-	hashedID, err := u.hmacHasher.Hash(code)
+	hashedCode, err := u.hmacHasher.Hash(code)
 	if err != nil {
 		log.Error().Str("traceId", traceId).Err(err).Msg("failed to hash verification code")
 		return
 	}
 
 	verification := &Verification{
-		ID:         hashedID,
+		ID:         toolbox.GenerateTypeId(toolbox.TypeIdPrefixVerification),
 		IdentityID: identity.ID,
 		Kind:       VerificationKindEmailOTP,
+		HashedCode: hashedCode,
 		Attempts:   0,
 		ExpiresAt:  now.Add(10 * time.Minute),
 		CreatedAt:  now,
@@ -99,6 +100,7 @@ func (u *authnUseCases) SendOTP(ctx *echo.Context, req *SendOTPRequest) {
 	}
 }
 
+// VerifyOTP verifies the OTP code against the stored hash and returns a signed-in response
 func (u *authnUseCases) VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest) (*SignInResponse, error) {
 	traceId := toolbox.GetTraceId(ctx)
 	now := time.Now().UTC()
@@ -121,7 +123,7 @@ func (u *authnUseCases) VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest) (*Si
 	}
 
 	// Verify the code against the stored hash
-	if !u.hmacHasher.Verify(req.Code, v.ID) {
+	if !u.hmacHasher.Verify(req.Code, v.HashedCode) {
 		_ = u.verificationRepo.IncrementAttempts(ctx.Request().Context(), v.ID)
 		if v.Attempts+1 >= 3 {
 			_ = u.verificationRepo.Delete(ctx.Request().Context(), v.ID)
@@ -137,11 +139,11 @@ func (u *authnUseCases) VerifyOTP(ctx *echo.Context, req *VerifyOTPRequest) (*Si
 	_ = u.identityRepo.UpdateEmailVerifiedAt(ctx.Request().Context(), identity.ID, now)
 
 	// Resolve default organization membership (earliest created)
-	oldestMembership, err := u.orgRepo.FindOldestMembershipsByIdentityID(ctx.Request().Context(), identity.ID)
-	if err != nil {
-		return nil, err
+	activeOrgID := ""
+	oldestMembership, _ := u.orgRepo.FindOldestMembershipsByIdentityID(ctx.Request().Context(), identity.ID)
+	if oldestMembership != nil {
+		activeOrgID = oldestMembership.OrganizationID
 	}
-	activeOrgID := &oldestMembership.OrganizationID
 
 	// Create session with opaque token
 	token, hashedToken, err := toolbox.GenerateOpaqueToken(u.hmacHasher, "ses")

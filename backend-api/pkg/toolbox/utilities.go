@@ -37,8 +37,8 @@ func SecureRandomInt(min, max int) int {
 	return int(n.Int64()) + min
 }
 
-// SecureRandomIntOfLen generates a random integer of the specified length
-func SecureRandomOTP(length int) (string, error) {
+// SecureRandomOTP generates a 6 digit suitable for one time passwords
+func SecureRandomOTP() (string, error) {
 	max := big.NewInt(1000000) // upper bound (exclusive): 0 - 999999
 	n, err := rand.Int(rand.Reader, max)
 	if err != nil {

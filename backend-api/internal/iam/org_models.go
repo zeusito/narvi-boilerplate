@@ -24,7 +24,7 @@ const (
 )
 
 type Organization struct {
-	bun.BaseModel `bun:"table:identities,alias:i"`
+	bun.BaseModel `bun:"table:organizations,alias:o"`
 
 	ID           string            `bun:"id,pk"`
 	Name         string            `bun:"name,notnull"`

@@ -1,8 +1,8 @@
 -- migrate:up
 create table if not exists identity_sessions (
     id varchar(100) not null,
-    identity_id varchar(50) not null,
-    organization_id varchar(50) null,
+    identity_id varchar(50) not null default '',
+    organization_id varchar(50) not null default '',
     ip_address varchar(50) not null default '',
     user_agent text not null default '',
     expires_at timestamptz not null default now() + interval '1 hour',

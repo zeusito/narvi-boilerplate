@@ -19,7 +19,7 @@ func RequireAuth(sessionManager SessionManager) echo.MiddlewareFunc {
 			}
 
 			// Remove the "Bearer " prefix
-			token = token[7:]
+			token = strings.TrimSpace(token[7:])
 
 			// Introspect token
 			claims := sessionManager.Introspect(c, token)

@@ -11,7 +11,7 @@ type IdentitySession struct {
 
 	ID             string    `bun:"id,pk"`
 	IdentityID     string    `bun:"identity_id,notnull"`
-	OrganizationID *string   `bun:"organization_id"`
+	OrganizationID string    `bun:"organization_id"`
 	IPAddress      string    `bun:"ip_address,notnull"`
 	UserAgent      string    `bun:"user_agent,notnull"`
 	ExpiresAt      time.Time `bun:"expires_at,notnull"`

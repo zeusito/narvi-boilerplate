@@ -7,6 +7,7 @@ type TypeIdPrefix string
 const (
 	TypeIdPrefixIdentity     TypeIdPrefix = "id"
 	TypeIdPrefixOrganization TypeIdPrefix = "org"
+	TypeIdPrefixVerification TypeIdPrefix = "ver"
 )
 
 // GenerateTypeId generates a new type ID with the specified prefix

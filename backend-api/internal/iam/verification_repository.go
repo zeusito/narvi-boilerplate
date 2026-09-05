@@ -1,10 +1,7 @@
 package iam
 
 import (
-	"backend-api/pkg/terrors"
 	"context"
-	"database/sql"
-	"errors"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -24,7 +21,7 @@ func (r *verificationRepo) Create(ctx context.Context, v *Verification) error {
 		Exec(ctx)
 
 	if err != nil {
-		return terrors.OperationFailed(err.Error())
+		return err
 	}
 
 	return nil
@@ -36,16 +33,13 @@ func (r *verificationRepo) FindLatestActive(ctx context.Context, identityID, kin
 		Model(v).
 		Where("identity_id = ?", identityID).
 		Where("kind = ?", kind).
-		Where("expires_at > ?", time.Now()).
+		Where("expires_at > ?", time.Now().UTC()).
 		Order("created_at DESC").
 		Limit(1).
 		Scan(ctx)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, terrors.OperationFailed(err.Error())
+		return nil, err
 	}
 
 	return v, nil
@@ -59,7 +53,7 @@ func (r *verificationRepo) IncrementAttempts(ctx context.Context, id string) err
 		Exec(ctx)
 
 	if err != nil {
-		return terrors.OperationFailed(err.Error())
+		return err
 	}
 
 	return nil
@@ -72,7 +66,7 @@ func (r *verificationRepo) Delete(ctx context.Context, id string) error {
 		Exec(ctx)
 
 	if err != nil {
-		return terrors.OperationFailed(err.Error())
+		return err
 	}
 
 	return nil
@@ -86,7 +80,7 @@ func (r *verificationRepo) DeleteAllForIdentityAndKind(ctx context.Context, iden
 		Exec(ctx)
 
 	if err != nil {
-		return terrors.OperationFailed(err.Error())
+		return err
 	}
 
 	return nil

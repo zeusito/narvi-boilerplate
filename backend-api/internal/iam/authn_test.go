@@ -43,7 +43,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic("failed to initialize test container: " + err.Error())
 	}
-	defer cleanup()
 
 	testDB = conn
 
@@ -55,7 +54,9 @@ func TestMain(m *testing.M) {
 
 	fakeMailer = mailer.NewFakeMailer()
 
-	os.Exit(m.Run())
+	code := m.Run()
+	cleanup()
+	os.Exit(code)
 }
 
 func setupTestApp(t *testing.T) (*router.HttpRouter, *authnController) {

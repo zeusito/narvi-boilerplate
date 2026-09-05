@@ -1,10 +1,7 @@
 package iam
 
 import (
-	"backend-api/pkg/terrors"
 	"context"
-	"database/sql"
-	"errors"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -24,7 +21,7 @@ func (r *sessionRepo) Create(ctx context.Context, s *IdentitySession) error {
 		Exec(ctx)
 
 	if err != nil {
-		return terrors.OperationFailed(err.Error())
+		return err
 	}
 
 	return nil
@@ -35,14 +32,11 @@ func (r *sessionRepo) FindActiveSessionIntrospection(ctx context.Context, sessio
 	err := r.db.NewSelect().
 		Model(view).
 		Where("session_id = ?", sessionHash).
-		Where("session_expires_at > ?", time.Now()).
+		Where("session_expires_at > ?", time.Now().UTC()).
 		Scan(ctx)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, terrors.OperationFailed(err.Error())
+		return nil, err
 	}
 
 	return view, nil

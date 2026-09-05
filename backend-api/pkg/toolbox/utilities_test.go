@@ -36,7 +36,7 @@ func TestSecureRandomInt(t *testing.T) {
 }
 
 func TestSecureRandomOTP(t *testing.T) {
-	otp, err := SecureRandomOTP(6)
+	otp, err := SecureRandomOTP()
 	assert.NoError(t, err)
 	assert.Len(t, otp, 6)
 }

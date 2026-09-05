@@ -34,6 +34,7 @@ create table if not exists verifications (
     id varchar(100) not null,
     identity_id varchar(50) not null,
     kind varchar(50) not null default '',
+    hashed_code varchar(255) not null default '',
     attempts int not null default 0,
     expires_at timestamptz not null default now() + interval '10 minutes',
     created_at timestamptz not null default now(),
