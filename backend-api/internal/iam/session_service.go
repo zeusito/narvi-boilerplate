@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"backend-api/pkg/authz"
 	"backend-api/pkg/toolbox/hasher"
 )
 
@@ -45,5 +46,6 @@ func (s *defaultSessionIntrospectionService) Introspect(ctx context.Context, tok
 		OrganizationSlug:     record.OrganizationSlug,
 		OrganizationLogo:     record.OrganizationLogo,
 		OrganizationRole:     record.OrganizationRole,
+		Permissions:          authz.ExpandRolePermissions(record.OrganizationRole),
 	}
 }

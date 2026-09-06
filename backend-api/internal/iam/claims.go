@@ -1,30 +1,22 @@
 package iam
 
-import "github.com/labstack/echo/v5"
+import (
+	"backend-api/pkg/authz"
 
-const PrincipalClaimsKey = "claims"
+	"github.com/labstack/echo/v5"
+)
 
-type PrincipalClaims struct {
-	IsAuthenticated      bool   `json:"isAuthenticated"`
-	SessionID            string `json:"sessionId"`
-	IdentityID           string `json:"identityId"`
-	Email                string `json:"email"`
-	FullName             string `json:"fullName"`
-	ActiveOrganizationID string `json:"activeOrganizationId,omitempty"`
-	OrganizationName     string `json:"organizationName,omitempty"`
-	OrganizationSlug     string `json:"organizationSlug,omitempty"`
-	OrganizationLogo     string `json:"organizationLogo,omitempty"`
-	OrganizationRole     string `json:"organizationRole,omitempty"`
-}
+const PrincipalClaimsKey = authz.PrincipalClaimsKey
 
+// PrincipalClaims aliases authz.PrincipalClaims for backward compatibility within iam.
+type PrincipalClaims = authz.PrincipalClaims
+
+// ExtractClaimsFromContext extracts PrincipalClaims from Echo context.
 func ExtractClaimsFromContext(ctx *echo.Context) *PrincipalClaims {
-	claims, err := echo.ContextGetOr[*PrincipalClaims](ctx, PrincipalClaimsKey, &PrincipalClaims{IsAuthenticated: false})
-	if err != nil {
-		return &PrincipalClaims{IsAuthenticated: false}
-	}
-	return claims
+	return authz.ExtractClaimsFromContext(ctx)
 }
 
+// SetClaimsInContext sets PrincipalClaims in Echo context.
 func SetClaimsInContext(ctx *echo.Context, claims *PrincipalClaims) {
-	ctx.Set(PrincipalClaimsKey, claims)
+	authz.SetClaimsInContext(ctx, claims)
 }
