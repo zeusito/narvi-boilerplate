@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
 	"testing"
 
 	"backend-api/pkg/mailer"
@@ -20,7 +19,6 @@ import (
 var (
 	testDB     *bun.DB
 	testHasher hasher.Hasher
-	fakeMailer mailer.Mailer
 )
 
 const testSecret = "dGVzdC1zZWNyZXQta2V5LTMyLWJ5dGVzLWxvbmctISE="
@@ -50,51 +48,23 @@ func TestMain(m *testing.M) {
 	}
 	testHasher = h
 
-	fakeMailer = mailer.NewFakeMailer()
-
 	code := m.Run()
 	cleanup()
 	os.Exit(code)
 }
 
-type spyMailer struct {
-	mailer.Mailer
-	mu       sync.Mutex
-	lastCode string
-}
-
-func newSpyMailer() *spyMailer {
-	return &spyMailer{Mailer: mailer.NewFakeMailer()}
-}
-
-func (s *spyMailer) SendOTPCode(ctx context.Context, email, code string) error {
-	s.mu.Lock()
-	s.lastCode = code
-	s.mu.Unlock()
-	return s.Mailer.SendOTPCode(ctx, email, code)
-}
-
-func (s *spyMailer) LastCode() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.lastCode
-}
-
-func setupAuthService(t *testing.T, mail mailer.Mailer) authService {
+func setupAuthService(t *testing.T) (authService, *mailer.SpyMailer) {
 	identityRepo := newIdentityRepository(testDB)
 	orgRepo := newOrganizationRepository(testDB)
 	verificationRepo := newVerificationRepository(testDB)
 	sessionRepo := newSessionRepository(testDB)
+	spyMail := mailer.NewSpyMailer()
 
-	if mail == nil {
-		mail = fakeMailer
-	}
-
-	return newAuthnService(orgRepo, identityRepo, verificationRepo, sessionRepo, mail, testHasher)
+	return newAuthnService(orgRepo, identityRepo, verificationRepo, sessionRepo, spyMail, testHasher), spyMail
 }
 
 func TestSendOTP_ValidUser(t *testing.T) {
-	service := setupAuthService(t, nil)
+	service, _ := setupAuthService(t)
 
 	// Clean any previous verifications for admin
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
@@ -110,14 +80,14 @@ func TestSendOTP_ValidUser(t *testing.T) {
 }
 
 func TestSendOTP_AntiEnumeration(t *testing.T) {
-	service := setupAuthService(t, nil)
+	service, _ := setupAuthService(t)
 
 	err := service.SendOTP(t.Context(), &SendOTPRequest{Email: "unknown@example.com"})
 	assert.NoError(t, err)
 }
 
 func TestSendOTP_CooldownViolation(t *testing.T) {
-	service := setupAuthService(t, nil)
+	service, _ := setupAuthService(t)
 
 	// Clean any previous verifications for admin
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
@@ -137,7 +107,7 @@ func TestSendOTP_CooldownViolation(t *testing.T) {
 }
 
 func TestVerifyOTP_InvalidCode_IncrementsAttempts(t *testing.T) {
-	service := setupAuthService(t, nil)
+	service, _ := setupAuthService(t)
 
 	// Invalidate previous verification and create a fresh one
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
@@ -165,7 +135,7 @@ func TestVerifyOTP_InvalidCode_IncrementsAttempts(t *testing.T) {
 }
 
 func TestVerifyOTP_BruteForceDefense(t *testing.T) {
-	service := setupAuthService(t, nil)
+	service, _ := setupAuthService(t)
 
 	// Clean verifications
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
@@ -209,8 +179,7 @@ func TestVerifyOTP_BruteForceDefense(t *testing.T) {
 }
 
 func TestVerifyOTP_Success(t *testing.T) {
-	spy := newSpyMailer()
-	service := setupAuthService(t, spy)
+	service, spy := setupAuthService(t)
 
 	// Clean verifications and sessions for admin
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
