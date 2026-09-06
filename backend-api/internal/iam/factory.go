@@ -4,7 +4,7 @@ import (
 	"backend-api/pkg/mailer"
 	"backend-api/pkg/toolbox/hasher"
 
-	"github.com/labstack/echo/v5"
+	"github.com/go-chi/chi/v5"
 	"github.com/uptrace/bun"
 )
 
@@ -13,7 +13,7 @@ type Module struct {
 }
 
 func NewModule(
-	mux *echo.Echo,
+	mux *chi.Mux,
 	db *bun.DB,
 	mail mailer.Mailer,
 	hmacHasher hasher.Hasher,

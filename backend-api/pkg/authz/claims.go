@@ -1,34 +1,40 @@
 package authz
 
-import "github.com/labstack/echo/v5"
+import (
+	"context"
+)
 
-const PrincipalClaimsKey = "claims"
+type ctxKeyAuthClaims int
+
+const (
+	PrincipalClaimsKey ctxKeyAuthClaims = 1
+)
 
 // PrincipalClaims encapsulates the authenticated identity, tenant context, and resolved permissions.
 type PrincipalClaims struct {
-	IsAuthenticated      bool     `json:"isAuthenticated"`
-	SessionID            string   `json:"sessionId"`
-	IdentityID           string   `json:"identityId"`
-	Email                string   `json:"email"`
-	FullName             string   `json:"fullName"`
-	ActiveOrganizationID string   `json:"activeOrganizationId,omitempty"`
-	OrganizationName     string   `json:"organizationName,omitempty"`
-	OrganizationSlug     string   `json:"organizationSlug,omitempty"`
-	OrganizationLogo     string   `json:"organizationLogo,omitempty"`
-	OrganizationRole     string   `json:"organizationRole,omitempty"`
-	Permissions          []string `json:"permissions"`
+	IsAuthenticated      bool   `json:"isAuthenticated"`
+	SessionID            string `json:"sessionId"`
+	IdentityID           string `json:"identityId"`
+	Email                string `json:"email"`
+	FullName             string `json:"fullName"`
+	ActiveOrganizationID string `json:"activeOrganizationId,omitempty"`
+	OrganizationName     string `json:"organizationName,omitempty"`
+	OrganizationSlug     string `json:"organizationSlug,omitempty"`
+	OrganizationLogo     string `json:"organizationLogo,omitempty"`
+	OrganizationRole     string `json:"organizationRole,omitempty"`
 }
 
-// ExtractClaimsFromContext retrieves the PrincipalClaims stored in the Echo context.
-func ExtractClaimsFromContext(ctx *echo.Context) *PrincipalClaims {
-	claims, err := echo.ContextGetOr(ctx, PrincipalClaimsKey, &PrincipalClaims{IsAuthenticated: false})
-	if err != nil {
-		return &PrincipalClaims{IsAuthenticated: false, Permissions: []string{}}
+// ExtractClaimsFromContext retrieves the PrincipalClaims stored in the context.
+func ExtractClaimsFromContext(ctx context.Context) PrincipalClaims {
+	claims, ok := ctx.Value(PrincipalClaimsKey).(PrincipalClaims)
+	if !ok {
+		return PrincipalClaims{IsAuthenticated: false}
 	}
+
 	return claims
 }
 
-// SetClaimsInContext stores the PrincipalClaims in the underlying context.
-func SetClaimsInContext(ctx *echo.Context, claims *PrincipalClaims) {
-	ctx.Set(PrincipalClaimsKey, claims)
+// AddClaimsToContext stores the PrincipalClaims in the provided context.
+func AddClaimsToContext(ctx context.Context, claims *PrincipalClaims) context.Context {
+	return context.WithValue(ctx, PrincipalClaimsKey, claims)
 }

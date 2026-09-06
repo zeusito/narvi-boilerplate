@@ -41,6 +41,5 @@ func (s *DefaultSessionIntrospectionService) Introspect(ctx context.Context, tok
 		OrganizationSlug:     record.OrganizationSlug,
 		OrganizationLogo:     record.OrganizationLogo,
 		OrganizationRole:     record.OrganizationRole,
-		Permissions:          []string{}, // Permissions are not included in the session introspection response
 	}
 }

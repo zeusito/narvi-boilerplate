@@ -13,7 +13,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
-	"syscall"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	// Init Http router
-	myRouter := router.NewRouter()
+	myRouter := router.NewChiRouter(configStore.Server)
 
 	// Database connection
 	dbPool := database.MustCreatePooledConnection(configStore.Database)
@@ -51,10 +51,24 @@ func main() {
 	_ = healthcheck.NewModule(myRouter.Mux)
 	_ = iam.NewModule(myRouter.Mux, dbPool.Conn, mailService, hmacHasher)
 
-	// Create a context that is canceled on SIGINT or SIGTERM
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	// Start server in background
+	go myRouter.Start()
 
-	// Start the server
-	myRouter.Start(ctx, configStore.Server.Port)
+	// Graceful shutdown
+	gracefulShutdown(myRouter)
+}
+
+func gracefulShutdown(myRouter *router.ChiRouter) {
+	// Wait for the interrupt signal to gracefully shut down the server with a timeout of 10 seconds.
+	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	// Signal acquired, starting to shut down all systems
+	log.Warn().Msg("Shutting down gracefully...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	myRouter.Shutdown(ctx)
 }
