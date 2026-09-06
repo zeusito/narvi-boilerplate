@@ -11,11 +11,13 @@ import (
 
 type authnController struct {
 	authService authService
+	sessionSvc  sessionService
 }
 
-func newAuthnController(mux *echo.Echo, sessionService SessionIntrospectionService, authService authService) *authnController {
+func newAuthnController(mux *echo.Echo, siSvc SessionIntrospectionService, sSvc sessionService, authService authService) *authnController {
 	c := &authnController{
 		authService: authService,
+		sessionSvc:  sSvc,
 	}
 
 	sendLimiter := NewAuthRateLimiter(1.0, 5)   // 1 req/sec sustained, burst of 5
@@ -24,7 +26,8 @@ func newAuthnController(mux *echo.Echo, sessionService SessionIntrospectionServi
 	authGroup := mux.Group("/v1/auth")
 	authGroup.POST("/otp/send", c.handleSendOTP, sendLimiter)
 	authGroup.POST("/otp/verify", c.handleVerifyOTP, verifyLimiter)
-	authGroup.GET("/introspect", c.handleIntrospect, RequireAuth(sessionService))
+	authGroup.GET("/introspect", c.handleIntrospect, RequireAuth(siSvc))
+	authGroup.DELETE("/logout", c.handleLogout, RequireAuth(siSvc))
 
 	return c
 }
@@ -76,4 +79,12 @@ func (c *authnController) handleIntrospect(ctx *echo.Context) error {
 	claims := ExtractClaimsFromContext(ctx)
 
 	return ctx.JSON(http.StatusOK, claims)
+}
+
+func (c *authnController) handleLogout(ctx *echo.Context) error {
+	claims := ExtractClaimsFromContext(ctx)
+
+	_ = c.sessionSvc.Logout(ctx.Request().Context(), claims.SessionID)
+
+	return ctx.JSON(http.StatusOK, nil)
 }

@@ -34,8 +34,9 @@ func NewModule(
 	sessionRepo := newSessionRepository(db)
 
 	authService := newAuthnService(orgRepo, identityRepo, verificationRepo, sessionRepo, mail, hmacHasher)
-	sessionService := newSessionIntrospectionService(sessionRepo, hmacHasher)
-	_ = newAuthnController(mux, sessionService, authService)
+	sessionIntrospectionService := newSessionIntrospectionService(sessionRepo, hmacHasher)
+	sessionService := newDefaultSessionService(sessionRepo)
+	_ = newAuthnController(mux, sessionIntrospectionService, sessionService, authService)
 
 	opaEnforcer, err := authz.NewEnforcer(context.Background(), "")
 	if err != nil {
@@ -43,7 +44,7 @@ func NewModule(
 	}
 
 	return &Module{
-		SessionIntrospectionService: sessionService,
+		SessionIntrospectionService: sessionIntrospectionService,
 		AuthzEnforcer:               opaEnforcer,
 	}
 }

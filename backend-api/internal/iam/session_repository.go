@@ -56,3 +56,17 @@ func (r *sessionRepo) FindActiveSessionIntrospection(ctx context.Context, sessio
 
 	return view, nil
 }
+
+func (r *sessionRepo) RemoveBySessionID(ctx context.Context, sessionID string) error {
+	_, err := r.db.NewDelete().
+		Model((*IdentitySession)(nil)).
+		Where("session_id = ?", sessionID).
+		Exec(ctx)
+
+	if err != nil {
+		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to remove session")
+		return terrors.OperationFailed("failed to remove session")
+	}
+
+	return nil
+}

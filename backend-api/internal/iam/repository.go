@@ -37,4 +37,5 @@ type sessionRepository interface {
 	WithTx(tx bun.Tx) sessionRepository
 	Create(ctx context.Context, s *IdentitySession) error
 	FindActiveSessionIntrospection(ctx context.Context, sessionHash string) (*SessionIntrospectionView, error)
+	RemoveBySessionID(ctx context.Context, sessionID string) error
 }
