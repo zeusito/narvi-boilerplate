@@ -18,7 +18,7 @@ Every module follows a strict **Controller-Service-Repository** strategy:
        │
        ▼
 ┌──────────────┐
-│  Controller  │  Transport: Echo routing, DTO binding, syntactic validation, claims extraction
+│  Controller  │  Transport: Chi routing, DTO binding, syntactic validation, claims extraction
 └──────┬───────┘
        │  ctx (context.Context), Request DTOs
        ▼
@@ -36,11 +36,11 @@ Every module follows a strict **Controller-Service-Repository** strategy:
 ```
 
 ### 1. Controller (Transport Layer)
-- **HTTP Routing & Binding:** Handles HTTP routes (`echo.Echo` or route groups), parses path/query parameters, and binds JSON payloads to dedicated **Request DTO** structs.
+- **HTTP Routing & Binding:** Handles HTTP routes (`*chi.Mux` or `chi.Router` groups), parses path/query parameters, and binds JSON payloads (using `router.BindBody`) to dedicated **Request DTO** structs.
 - **Syntactic Validation:** Validates request structure using `go-playground/validator` struct tags (e.g. `validate:"required,email"`). Returns HTTP 400 immediately if input is structurally malformed.
-- **Context Extraction:** Unwraps `ctx.Request().Context()` and extracts authentication claims/headers.
-- **Strict Boundary Rule:** **NEVER pass `*echo.Context` into Service or Repository methods.** Always pass standard Go `context.Context` and pure DTOs/types.
-- **Response Mapping:** Calls the Service, formats successful results into **Response DTOs** (or JSON), and returns errors directly for centralized handling.
+- **Context Extraction:** Uses standard `r.Context()` and extracts authentication claims/headers via `authz` helpers.
+- **Strict Boundary Rule:** **NEVER pass HTTP transport objects (`http.ResponseWriter`, `*http.Request`) into Service or Repository methods.** Always pass standard Go `context.Context` and pure DTOs/types.
+- **Response Mapping:** Calls the Service, formats successful results into **Response DTOs** (via `router.RenderJSON`), and returns typed errors via `router.RenderError`.
 
 ### 2. Service (Business Logic Layer)
 - **Pure Go Logic:** Contains domain business workflows, lifecycle rules, and state transitions. Completely independent of HTTP frameworks or web transports (can run safely in CLI, workers, or tests).
@@ -82,8 +82,8 @@ For focused or small modules, single files per layer are appropriate:
 
 | File                    | Purpose                              | Patterns to Follow                                                                              |
 | :---------------------- | :----------------------------------- | :---------------------------------------------------------------------------------------------- |
-| `factory.go`            | **Entry Point.** Wires dependencies. | Use `NewModule(mux *echo.Echo, db *bun.DB, ...)`                                                |
-| `controller.go`         | **Transport Layer.** HTTP handlers.  | Use `echo` for routing, bind/validate DTOs, call service, return JSON.                         |
+| `factory.go`            | **Entry Point.** Wires dependencies. | Use `NewModule(mux *chi.Mux, db *bun.DB, ...)`                                                  |
+| `controller.go`         | **Transport Layer.** HTTP handlers.  | Use `chi` for routing, bind/validate DTOs via `pkg/router`, call service, return JSON.         |
 | `service.go`            | **Business Logic Interface.**        | Define the `Service` interface and constructor.                                                 |
 | `service_default.go`    | **Logic Implementation.**            | Implement `Service`. Orchestrate repository calls and business logic.                           |
 | `repository.go`         | **Data Access Interface.**           | Define the `Repository` interface and constructor.                                              |
@@ -282,7 +282,7 @@ To keep code maintainable and prevent logic leakage, strictly separate **Transpo
 
 1. **Dependency Injection**: Dependencies (`*bun.DB`, services, repositories) must be passed explicitly via constructors in `factory.go` or package sub-constructors.
 2. **Context & Structured Logging**: Every Service and Repository method must accept standard `context.Context` as its first parameter. Log operations with Zerolog using contextual tags (e.g. `request_id`, `principal_id`).
-3. **No Framework Leakage**: Controllers extract `ctx.Request().Context()` and pass pure DTOs. Never import `github.com/labstack/echo/v5` inside service or repository files.
+3. **No Framework Leakage**: Controllers extract `r.Context()` and pass pure DTOs. Never import `github.com/go-chi/chi/v5` inside service or repository files.
 4. **Controller-Service-Repository Flow**:
    - Controllers never touch repositories; they call services.
    - Services orchestrate business logic and interact with repositories.
@@ -290,7 +290,7 @@ To keep code maintainable and prevent logic leakage, strictly separate **Transpo
 5. **Error Handling Across Layers**:
    - Repositories return `*terrors.Terror` (e.g. `RecordNotFound`, `RecordAlreadyExists`, `OperationFailed`).
    - Services validate domain rules and propagate or create `*terrors.Terror` (e.g. `UnAuthorized`, `Forbidden`, `PreconditionFailed`).
-   - Controllers return errors directly to Echo for standardized HTTP response serialization.
+   - Controllers handle HTTP errors using `router.RenderError(ctx, w, err)` for standardized HTTP response serialization.
 6. **Pagination & Filters**: Controllers parse query params into a `Filters` struct from `models.go` (or `<concept>_models.go`) and pass it to the service layer.
 
 ---
@@ -313,8 +313,8 @@ When Module B needs data or capabilities from Module A:
 
 ```go
 // cmd/main.go
-iamMod := iam.NewModule(appEcho, dbPool.Conn, mailer, configStore.Iam)
-contentMod := content.NewModule(appEcho, dbPool.Conn, iamMod.SessionService)
+iamMod := iam.NewModule(myRouter.Mux, dbPool.Conn, mailer, configStore.Iam)
+contentMod := content.NewModule(myRouter.Mux, dbPool.Conn, iamMod.SessionService)
 ```
 
 ### 3. Acyclic Dependencies (No Circular Module Imports)

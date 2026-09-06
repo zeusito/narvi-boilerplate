@@ -4,13 +4,13 @@ go 1.27.1
 
 require (
 	github.com/go-chi/chi/v5 v5.3.2
+	github.com/go-chi/httprate v0.16.0
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/knadh/koanf/parsers/toml v0.1.0
 	github.com/knadh/koanf/providers/env v1.1.0
 	github.com/knadh/koanf/providers/file v1.2.1
 	github.com/knadh/koanf/v2 v2.3.6
-	github.com/labstack/echo/v5 v5.3.1
 	github.com/open-policy-agent/opa v1.20.2
 	github.com/resend/resend-go/v4 v4.3.0
 	github.com/rs/zerolog v1.35.1
@@ -42,7 +42,6 @@ require (
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
-	github.com/go-chi/httprate v0.16.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

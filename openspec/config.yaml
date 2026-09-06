@@ -5,7 +5,7 @@ schema: spec-driven
 context: |
   Architecture & Tech Stack:
   - Monorepo structure:
-    * backend-api: Go 1.27+, Echo router, Bun ORM, Zerolog, PostgreSQL 18.
+    * backend-api: Go 1.27+, Chi router, Bun ORM, Zerolog, PostgreSQL 18.
     * frontend-hub: SvelteKit 2, Svelte 5 (runes: $state, $derived, $props), TypeScript, Tailwind CSS v4, shadcn-svelte.
 
 # Per-artifact rules

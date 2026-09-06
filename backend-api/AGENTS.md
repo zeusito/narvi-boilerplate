@@ -6,7 +6,7 @@ This document provides context and guidelines for AI agents working on this proj
 
 This is our main API for our platform. We aim for code that is highly maintainable, testable, and scalable. Stability is our priority.
 
-- **Frameworks**: Echo v5 (Router), Bun (ORM), Zerolog (Logging).
+- **Frameworks**: Chi v5 (Router), Bun (ORM), Zerolog (Logging).
 - **Structure**:
   - `cmd/`: Application entry points.
   - `internal/`: Core business logic.
@@ -24,7 +24,7 @@ We follow a modular architecture with strict separation of concerns under `inter
   - Unexported internal helpers: `*er` (e.g. `authenticator`, `introspector`).
 - **DTO Naming:** Use `[Action][Entity]Request` for request bodies, `[Entity]Response` for outputs, `[Entity]Filters` for query parameters, and `[Entity]Summary` for list items. Never use generic suffixes like `*DTO` or `*Input`.
 - **Dependency Injection:** Pass dependencies (DB, other services) into the `NewModule` or `NewService` constructors.
-- **Router:** We use `echo`. Controllers should accept `*echo.Echo` (or `echo.Router`) and register their own sub-routes.
+- **Router:** We use `chi` (`github.com/go-chi/chi/v5`). Controllers should accept `*chi.Mux` (or `chi.Router`) and register their own sub-routes using standard `net/http` handler signatures (`http.ResponseWriter`, `*http.Request`), with helpers from `pkg/router` (`router.BindBody`, `router.RenderJSON`, `router.RenderError`).
 - **Database:** We use `uptrace/bun`. Repositories should accept `*bun.DB` (or `bun.IDB`). Repositories must never leak SQL or storage errors and must return typed errors from `pkg/terrors`.
 - **Error Handling:** Use `pkg/terrors` for typed errors across repository, service, and controller layers.
 - **Idiomatic Go**: Follow standard Go practices and patterns.

@@ -9,13 +9,7 @@ import (
 	"io"
 	"math/big"
 	"strings"
-
-	"github.com/labstack/echo/v5"
 )
-
-func GetTraceId(ctx *echo.Context) string {
-	return ctx.Response().Header().Get(echo.HeaderXRequestID)
-}
 
 // SanitizeEmail sanitizes an email address by converting it to lowercase and trimming whitespace
 func SanitizeEmail(email string) string {

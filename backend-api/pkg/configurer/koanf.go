@@ -32,15 +32,8 @@ type DatabaseConfigurations struct {
 }
 
 type IamConfigurations struct {
-	DevMode              bool   `koanf:"dev-mode"`
-	BaseURL              string `koanf:"base-url"`
-	HmacSecret           string `koanf:"hmac-secret"`
-	OAuthProviderDomain  string `koanf:"oauth-provider-domain"`
-	OAuthClientID        string `koanf:"oauth-client-id"`
-	OAuthClientSecret    string `koanf:"oauth-client-secret"`
-	OAuthRedirectURI     string `koanf:"oauth-redirect-uri"`
-	OAuthM2MClientID     string `koanf:"oauth-m2m-client-id"`
-	OAuthM2MClientSecret string `koanf:"oauth-m2m-client-secret"`
+	BaseURL    string `koanf:"base-url"`
+	HmacSecret string `koanf:"hmac-secret"`
 }
 
 type EmailConfigurations struct {

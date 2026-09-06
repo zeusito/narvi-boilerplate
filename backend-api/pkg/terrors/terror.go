@@ -1,7 +1,5 @@
 package terrors
 
-import "github.com/labstack/echo/v5"
-
 type Terror struct {
 	ErrCode        string `json:"code"`
 	HttpStatusCode int    `json:"-"`
@@ -17,8 +15,4 @@ func (e *Terror) ToMap() map[string]string {
 		"code":    e.ErrCode,
 		"message": e.ErrMessage,
 	}
-}
-
-func (e *Terror) ToEchoHttpError() error {
-	return echo.NewHTTPError(e.HttpStatusCode, e.ErrMessage)
 }
