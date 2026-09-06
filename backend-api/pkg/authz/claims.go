@@ -21,14 +21,14 @@ type PrincipalClaims struct {
 
 // ExtractClaimsFromContext retrieves the PrincipalClaims stored in the Echo context.
 func ExtractClaimsFromContext(ctx *echo.Context) *PrincipalClaims {
-	claims, err := echo.ContextGetOr[*PrincipalClaims](ctx, PrincipalClaimsKey, &PrincipalClaims{IsAuthenticated: false, Permissions: []string{}})
+	claims, err := echo.ContextGetOr(ctx, PrincipalClaimsKey, &PrincipalClaims{IsAuthenticated: false})
 	if err != nil {
 		return &PrincipalClaims{IsAuthenticated: false, Permissions: []string{}}
 	}
 	return claims
 }
 
-// SetClaimsInContext stores the PrincipalClaims in the Echo context.
+// SetClaimsInContext stores the PrincipalClaims in the underlying context.
 func SetClaimsInContext(ctx *echo.Context, claims *PrincipalClaims) {
 	ctx.Set(PrincipalClaimsKey, claims)
 }

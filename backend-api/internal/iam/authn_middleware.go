@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"backend-api/pkg/authz"
 	"net/http"
 	"strings"
 	"time"
@@ -31,7 +32,7 @@ func RequireAuth(sessionService SessionIntrospectionService) echo.MiddlewareFunc
 			}
 
 			// Set claims in context
-			SetClaimsInContext(c, claims)
+			authz.SetClaimsInContext(c, claims)
 
 			return next(c)
 		}

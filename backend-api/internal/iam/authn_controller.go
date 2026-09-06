@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"backend-api/pkg/authz"
 	"backend-api/pkg/terrors"
 
 	"github.com/labstack/echo/v5"
@@ -76,13 +77,13 @@ func (c *authnController) handleVerifyOTP(ctx *echo.Context) error {
 }
 
 func (c *authnController) handleIntrospect(ctx *echo.Context) error {
-	claims := ExtractClaimsFromContext(ctx)
+	claims := authz.ExtractClaimsFromContext(ctx)
 
 	return ctx.JSON(http.StatusOK, claims)
 }
 
 func (c *authnController) handleLogout(ctx *echo.Context) error {
-	claims := ExtractClaimsFromContext(ctx)
+	claims := authz.ExtractClaimsFromContext(ctx)
 
 	_ = c.sessionSvc.Logout(ctx.Request().Context(), claims.SessionID)
 

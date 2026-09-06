@@ -1,11 +1,14 @@
 package iam
 
-import "context"
+import (
+	"backend-api/pkg/authz"
+	"context"
+)
 
 // SessionIntrospectionService this service is exposed to the outside world and is used to
 // introspect a session token and retrieve the associated principal claims.
 type SessionIntrospectionService interface {
-	Introspect(ctx context.Context, token string) *PrincipalClaims
+	Introspect(ctx context.Context, token string) *authz.PrincipalClaims
 }
 
 type authService interface {
