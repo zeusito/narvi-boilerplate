@@ -67,3 +67,24 @@ type OrganizationMembershipView struct {
 	MembershipCreatedAt time.Time              `bun:"membership_created_at,notnull"`
 	MembershipUpdatedAt time.Time              `bun:"membership_updated_at,notnull"`
 }
+
+type CreateOrganizationRequest struct {
+	Name string           `json:"name" validate:"required,min=3,max=255"`
+	Kind OrganizationKind `json:"kind" validate:"required,oneof=standard management"`
+}
+
+type OrganizationResponse struct {
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Slug      string            `json:"slug"`
+	Kind      OrganizationKind  `json:"kind"`
+	Logo      string            `json:"logo"`
+	State     OrganizationState `json:"state"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+type OrganizationListResponse struct {
+	Count int                    `json:"count"`
+	Data  []OrganizationResponse `json:"data"`
+}

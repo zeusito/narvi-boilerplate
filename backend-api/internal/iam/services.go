@@ -19,3 +19,9 @@ type authService interface {
 type sessionService interface {
 	Logout(ctx context.Context, sessionID string) error
 }
+
+type orgService interface {
+	Create(ctx context.Context, req *CreateOrganizationRequest) (*OrganizationResponse, error)
+	GetById(ctx context.Context, id string) (*OrganizationResponse, error)
+	GetAll(ctx context.Context) *OrganizationListResponse
+}
