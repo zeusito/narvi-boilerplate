@@ -6,8 +6,6 @@ create table if not exists identities (
     last_name varchar(255) not null default '',
     state varchar(50) not null default 'active',
     email_verified_at timestamptz null,
-    failed_login_attempts int not null default 0,
-    lock_expires_at timestamptz not null default now(),
     observations text not null default '',
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),

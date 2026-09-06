@@ -1,18 +1,16 @@
 package iam
 
 import (
-	"backend-api/pkg/mailer"
-	"backend-api/pkg/router"
-	"backend-api/pkg/toolbox/hasher"
-	"backend-api/pkg/toolbox/testbox"
-	"bytes"
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
+
+	"backend-api/pkg/mailer"
+	"backend-api/pkg/toolbox/hasher"
+	"backend-api/pkg/toolbox/testbox"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,34 +57,51 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func setupTestApp(t *testing.T) (*router.HttpRouter, *authnController) {
-	r := router.NewRouter()
+type spyMailer struct {
+	mailer.Mailer
+	mu       sync.Mutex
+	lastCode string
+}
+
+func newSpyMailer() *spyMailer {
+	return &spyMailer{Mailer: mailer.NewFakeMailer()}
+}
+
+func (s *spyMailer) SendOTPCode(ctx context.Context, email, code string) error {
+	s.mu.Lock()
+	s.lastCode = code
+	s.mu.Unlock()
+	return s.Mailer.SendOTPCode(ctx, email, code)
+}
+
+func (s *spyMailer) LastCode() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastCode
+}
+
+func setupAuthService(t *testing.T, mail mailer.Mailer) authService {
 	identityRepo := newIdentityRepository(testDB)
 	orgRepo := newOrganizationRepository(testDB)
 	verificationRepo := newVerificationRepository(testDB)
 	sessionRepo := newSessionRepository(testDB)
 
-	useCases := newAuthnUseCases(orgRepo, identityRepo, verificationRepo, sessionRepo, fakeMailer, testHasher)
-	sessionManager := newSessionManager(useCases)
-	controller := newAuthnController(r.Mux, sessionManager, useCases)
+	if mail == nil {
+		mail = fakeMailer
+	}
 
-	return r, controller
+	return newAuthnService(orgRepo, identityRepo, verificationRepo, sessionRepo, mail, testHasher)
 }
 
 func TestSendOTP_ValidUser(t *testing.T) {
-	r, controller := setupTestApp(t)
+	service := setupAuthService(t, nil)
 
 	// Clean any previous verifications for admin
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
 	require.NoError(t, err)
 
-	body := []byte(`{"email":"admin@example.com"}`)
-	req := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/send", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	ctx := r.Mux.NewContext(req, rec)
-	controller.handleSendOTP(ctx)
+	err = service.SendOTP(t.Context(), &SendOTPRequest{Email: "admin@example.com"})
+	require.NoError(t, err)
 
 	// Verify database record created
 	count, err := testDB.NewSelect().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Count(t.Context())
@@ -95,72 +110,52 @@ func TestSendOTP_ValidUser(t *testing.T) {
 }
 
 func TestSendOTP_AntiEnumeration(t *testing.T) {
-	r, controller := setupTestApp(t)
+	service := setupAuthService(t, nil)
 
-	body := []byte(`{"email":"unknown@example.com"}`)
-	req := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/send", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	ctx := r.Mux.NewContext(req, rec)
-	controller.handleSendOTP(ctx)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
+	err := service.SendOTP(t.Context(), &SendOTPRequest{Email: "unknown@example.com"})
+	assert.NoError(t, err)
 }
 
 func TestSendOTP_CooldownViolation(t *testing.T) {
-	r, controller := setupTestApp(t)
+	service := setupAuthService(t, nil)
 
 	// Clean any previous verifications for admin
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
 	require.NoError(t, err)
 
 	// First request succeeds
-	body := []byte(`{"email":"admin@example.com"}`)
-	req1 := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/send", bytes.NewReader(body))
-	req1.Header.Set("Content-Type", "application/json")
-	rec1 := httptest.NewRecorder()
+	err = service.SendOTP(t.Context(), &SendOTPRequest{Email: "admin@example.com"})
+	require.NoError(t, err)
 
-	ctx := r.Mux.NewContext(req1, rec1)
-	controller.handleSendOTP(ctx)
-	assert.Equal(t, http.StatusOK, rec1.Code)
+	// Immediate second request triggers cooldown (returns nil without error, no duplicate created)
+	err = service.SendOTP(t.Context(), &SendOTPRequest{Email: "admin@example.com"})
+	require.NoError(t, err)
 
-	// Immediate second request triggers cooldown (200 OK but does nothing)
-	req2 := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/send", bytes.NewReader(body))
-	req2.Header.Set("Content-Type", "application/json")
-	rec2 := httptest.NewRecorder()
-
-	ctx = r.Mux.NewContext(req2, rec2)
-	controller.handleSendOTP(ctx)
-	assert.Equal(t, http.StatusOK, rec2.Code)
+	count, err := testDB.NewSelect().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Count(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
 }
 
 func TestVerifyOTP_InvalidCode_IncrementsAttempts(t *testing.T) {
-	r, controller := setupTestApp(t)
+	service := setupAuthService(t, nil)
 
 	// Invalidate previous verification and create a fresh one
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
 	require.NoError(t, err)
 
 	// Send code
-	bodySend := []byte(`{"email":"admin@example.com"}`)
-	reqSend := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/send", bytes.NewReader(bodySend))
-	reqSend.Header.Set("Content-Type", "application/json")
-	recSend := httptest.NewRecorder()
-
-	ctx := r.Mux.NewContext(reqSend, recSend)
-	controller.handleSendOTP(ctx)
-	assert.Equal(t, http.StatusOK, recSend.Code)
+	err = service.SendOTP(t.Context(), &SendOTPRequest{Email: "admin@example.com"})
+	require.NoError(t, err)
 
 	// Submit wrong code
-	bodyVerify := []byte(`{"email":"admin@example.com","code":"000000"}`)
-	reqVerify := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/verify", bytes.NewReader(bodyVerify))
-	reqVerify.Header.Set("Content-Type", "application/json")
-	recVerify := httptest.NewRecorder()
-
-	ctx = r.Mux.NewContext(reqVerify, recVerify)
-	controller.handleVerifyOTP(ctx)
-	assert.Equal(t, http.StatusBadRequest, recVerify.Code)
+	resp, err := service.VerifyOTP(t.Context(), &VerifyOTPRequest{
+		Email:     "admin@example.com",
+		Code:      "000000",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test-agent",
+	})
+	assert.Error(t, err)
+	assert.Nil(t, resp)
 
 	// Check attempts incremented to 1
 	var attempts int
@@ -170,52 +165,86 @@ func TestVerifyOTP_InvalidCode_IncrementsAttempts(t *testing.T) {
 }
 
 func TestVerifyOTP_BruteForceDefense(t *testing.T) {
-	r, controller := setupTestApp(t)
+	service := setupAuthService(t, nil)
 
 	// Clean verifications
 	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
 	require.NoError(t, err)
 
 	// Send code
-	bodySend := []byte(`{"email":"admin@example.com"}`)
-	reqSend := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/send", bytes.NewReader(bodySend))
-	reqSend.Header.Set("Content-Type", "application/json")
-	recSend := httptest.NewRecorder()
-
-	ctx := r.Mux.NewContext(reqSend, recSend)
-	controller.handleSendOTP(ctx)
-	assert.Equal(t, http.StatusOK, recSend.Code)
+	err = service.SendOTP(t.Context(), &SendOTPRequest{Email: "admin@example.com"})
+	require.NoError(t, err)
 
 	// Attempt 1: wrong code -> attempts=1
-	bodyVerify := []byte(`{"email":"admin@example.com","code":"000001"}`)
-	req1 := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/verify", bytes.NewReader(bodyVerify))
-	req1.Header.Set("Content-Type", "application/json")
-	rec1 := httptest.NewRecorder()
-
-	ctx = r.Mux.NewContext(req1, rec1)
-	controller.handleVerifyOTP(ctx)
-	assert.Equal(t, http.StatusBadRequest, rec1.Code)
+	_, err = service.VerifyOTP(t.Context(), &VerifyOTPRequest{
+		Email:     "admin@example.com",
+		Code:      "000001",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test-agent",
+	})
+	assert.Error(t, err)
 
 	// Attempt 2: wrong code -> attempts=2
-	req2 := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/verify", bytes.NewReader(bodyVerify))
-	req2.Header.Set("Content-Type", "application/json")
-	rec2 := httptest.NewRecorder()
-
-	ctx = r.Mux.NewContext(req2, rec2)
-	controller.handleVerifyOTP(ctx)
-	assert.Equal(t, http.StatusBadRequest, rec2.Code)
+	_, err = service.VerifyOTP(t.Context(), &VerifyOTPRequest{
+		Email:     "admin@example.com",
+		Code:      "000002",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test-agent",
+	})
+	assert.Error(t, err)
 
 	// Attempt 3: wrong code -> reached 3, record deleted
-	req3 := httptest.NewRequest(http.MethodPost, "/v1/auth/otp/verify", bytes.NewReader(bodyVerify))
-	req3.Header.Set("Content-Type", "application/json")
-	rec3 := httptest.NewRecorder()
-
-	ctx = r.Mux.NewContext(req3, rec3)
-	controller.handleVerifyOTP(ctx)
-	assert.Equal(t, http.StatusBadRequest, rec3.Code)
+	_, err = service.VerifyOTP(t.Context(), &VerifyOTPRequest{
+		Email:     "admin@example.com",
+		Code:      "000003",
+		IPAddress: "127.0.0.1",
+		UserAgent: "test-agent",
+	})
+	assert.Error(t, err)
 
 	// Verification record should now be deleted
 	count, err := testDB.NewSelect().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Count(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
+}
+
+func TestVerifyOTP_Success(t *testing.T) {
+	spy := newSpyMailer()
+	service := setupAuthService(t, spy)
+
+	// Clean verifications and sessions for admin
+	_, err := testDB.NewDelete().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
+	require.NoError(t, err)
+
+	_, err = testDB.NewDelete().Table("identity_sessions").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Exec(t.Context())
+	require.NoError(t, err)
+
+	// Send code
+	err = service.SendOTP(t.Context(), &SendOTPRequest{Email: "admin@example.com"})
+	require.NoError(t, err)
+
+	code := spy.LastCode()
+	require.NotEmpty(t, code)
+
+	// Submit correct code
+	resp, err := service.VerifyOTP(t.Context(), &VerifyOTPRequest{
+		Email:     "admin@example.com",
+		Code:      code,
+		IPAddress: "127.0.0.1",
+		UserAgent: "test-agent",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.NotEmpty(t, resp.Token)
+	assert.Equal(t, 86400, resp.ExpiresIn)
+
+	// Verification record should now be deleted
+	count, err := testDB.NewSelect().Table("verifications").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Count(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+
+	// Session record should exist in database
+	sCount, err := testDB.NewSelect().Table("identity_sessions").Where("identity_id = ?", "01a02086-04a2-75a7-ba24-1616b586c403").Count(t.Context())
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, sCount, 1)
 }

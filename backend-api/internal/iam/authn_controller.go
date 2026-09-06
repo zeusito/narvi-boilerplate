@@ -1,24 +1,30 @@
 package iam
 
 import (
+	"errors"
 	"net/http"
+
+	"backend-api/pkg/terrors"
 
 	"github.com/labstack/echo/v5"
 )
 
 type authnController struct {
-	useCases authUseCases
+	authService authService
 }
 
-func newAuthnController(mux *echo.Echo, sm SessionManager, useCases authUseCases) *authnController {
+func newAuthnController(mux *echo.Echo, sessionService SessionIntrospectionService, authService authService) *authnController {
 	c := &authnController{
-		useCases: useCases,
+		authService: authService,
 	}
 
+	sendLimiter := NewAuthRateLimiter(1.0, 5)   // 1 req/sec sustained, burst of 5
+	verifyLimiter := NewAuthRateLimiter(2.0, 5) // 2 req/sec sustained, burst of 5
+
 	authGroup := mux.Group("/v1/auth")
-	authGroup.POST("/otp/send", c.handleSendOTP)
-	authGroup.POST("/otp/verify", c.handleVerifyOTP)
-	authGroup.GET("/introspect", c.handleIntrospect, RequireAuth(sm))
+	authGroup.POST("/otp/send", c.handleSendOTP, sendLimiter)
+	authGroup.POST("/otp/verify", c.handleVerifyOTP, verifyLimiter)
+	authGroup.GET("/introspect", c.handleIntrospect, RequireAuth(sessionService))
 
 	return c
 }
@@ -33,7 +39,13 @@ func (c *authnController) handleSendOTP(ctx *echo.Context) error {
 		return echo.ErrBadRequest.Wrap(err)
 	}
 
-	c.useCases.SendOTP(ctx, req)
+	if err := c.authService.SendOTP(ctx.Request().Context(), req); err != nil {
+		var terr *terrors.Terror
+		if errors.As(err, &terr) {
+			return terr.ToEchoHttpError()
+		}
+		return echo.ErrInternalServerError.Wrap(err)
+	}
 
 	return ctx.JSON(http.StatusOK, nil)
 }
@@ -48,9 +60,13 @@ func (c *authnController) handleVerifyOTP(ctx *echo.Context) error {
 		return echo.ErrBadRequest.Wrap(err)
 	}
 
-	resp, err := c.useCases.VerifyOTP(ctx, req)
+	resp, err := c.authService.VerifyOTP(ctx.Request().Context(), req)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "code is not valid")
+		var terr *terrors.Terror
+		if errors.As(err, &terr) {
+			return terr.ToEchoHttpError()
+		}
+		return echo.ErrBadRequest.Wrap(err)
 	}
 
 	return ctx.JSON(http.StatusOK, resp)

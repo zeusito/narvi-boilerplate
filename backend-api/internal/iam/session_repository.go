@@ -2,17 +2,26 @@ package iam
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
+	"backend-api/pkg/terrors"
+
+	"github.com/rs/zerolog/log"
 	"github.com/uptrace/bun"
 )
 
 type sessionRepo struct {
-	db *bun.DB
+	db bun.IDB
 }
 
-func newSessionRepository(db *bun.DB) sessionRepository {
+func newSessionRepository(db bun.IDB) sessionRepository {
 	return &sessionRepo{db: db}
+}
+
+func (r *sessionRepo) WithTx(tx bun.Tx) sessionRepository {
+	return &sessionRepo{db: tx}
 }
 
 func (r *sessionRepo) Create(ctx context.Context, s *IdentitySession) error {
@@ -21,7 +30,8 @@ func (r *sessionRepo) Create(ctx context.Context, s *IdentitySession) error {
 		Exec(ctx)
 
 	if err != nil {
-		return err
+		log.Error().Err(err).Str("identity_id", s.IdentityID).Msg("failed to insert session into database")
+		return terrors.OperationFailed("failed to create session")
 	}
 
 	return nil
@@ -36,7 +46,12 @@ func (r *sessionRepo) FindActiveSessionIntrospection(ctx context.Context, sessio
 		Scan(ctx)
 
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, terrors.RecordNotFound("active session not found")
+		}
+
+		log.Error().Err(err).Msg("failed to query active session introspection")
+		return nil, terrors.OperationFailed("failed to retrieve session")
 	}
 
 	return view, nil

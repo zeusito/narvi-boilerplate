@@ -30,8 +30,6 @@ CREATE TABLE public.identities (
     last_name character varying(255) DEFAULT ''::character varying NOT NULL,
     state character varying(50) DEFAULT 'active'::character varying NOT NULL,
     email_verified_at timestamp with time zone,
-    failed_login_attempts integer DEFAULT 0 NOT NULL,
-    lock_expires_at timestamp with time zone DEFAULT now() NOT NULL,
     observations text DEFAULT ''::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -59,8 +57,8 @@ CREATE TABLE public.identity_accounts (
 
 CREATE TABLE public.identity_sessions (
     id character varying(100) NOT NULL,
-    identity_id character varying(50) NOT NULL,
-    organization_id character varying(50),
+    identity_id character varying(50) DEFAULT ''::character varying NOT NULL,
+    organization_id character varying(50) DEFAULT ''::character varying NOT NULL,
     ip_address character varying(50) DEFAULT ''::character varying NOT NULL,
     user_agent text DEFAULT ''::text NOT NULL,
     expires_at timestamp with time zone DEFAULT (now() + '01:00:00'::interval) NOT NULL,
@@ -186,6 +184,7 @@ CREATE TABLE public.verifications (
     id character varying(100) NOT NULL,
     identity_id character varying(50) NOT NULL,
     kind character varying(50) DEFAULT ''::character varying NOT NULL,
+    hashed_code character varying(255) DEFAULT ''::character varying NOT NULL,
     attempts integer DEFAULT 0 NOT NULL,
     expires_at timestamp with time zone DEFAULT (now() + '00:10:00'::interval) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL

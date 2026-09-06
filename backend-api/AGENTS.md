@@ -19,13 +19,14 @@ We follow a modular architecture with strict separation of concerns under `inter
 ## Coding Conventions
 
 - **Interface Naming:**
-  - Exported cross-module contracts: `*Manager` (e.g. `SessionManager`).
-  - Unexported controller workflows: `*UseCases` (e.g. `authUseCases`).
+  - Exported cross-module services: `*Service` (e.g. `SessionService`, `IdentityService`).
+  - Unexported internal services: `*Service` (e.g. `authService`).
   - Unexported internal helpers: `*er` (e.g. `authenticator`, `introspector`).
+- **DTO Naming:** Use `[Action][Entity]Request` for request bodies, `[Entity]Response` for outputs, `[Entity]Filters` for query parameters, and `[Entity]Summary` for list items. Never use generic suffixes like `*DTO` or `*Input`.
 - **Dependency Injection:** Pass dependencies (DB, other services) into the `NewModule` or `NewService` constructors.
 - **Router:** We use `echo`. Controllers should accept `*echo.Echo` (or `echo.Router`) and register their own sub-routes.
-- **Database:** We use `uptrace/bun`. Repositories should accept `*bun.DB` (or `bun.IDB`).
-- **Error Handling:** Use `pkg/terrors` for typed errors in the service/controller layer.
+- **Database:** We use `uptrace/bun`. Repositories should accept `*bun.DB` (or `bun.IDB`). Repositories must never leak SQL or storage errors and must return typed errors from `pkg/terrors`.
+- **Error Handling:** Use `pkg/terrors` for typed errors across repository, service, and controller layers.
 - **Idiomatic Go**: Follow standard Go practices and patterns.
 - **Separation of Concerns**: Keep business logic in `internal/` and infrastructure in `pkg/`.
 - **Consistency**: Match the existing coding style in the repository.

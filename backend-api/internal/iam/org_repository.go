@@ -2,28 +2,51 @@ package iam
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
+	"backend-api/pkg/terrors"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/rs/zerolog/log"
 	"github.com/uptrace/bun"
 )
 
 type defaultOrganizationRepository struct {
-	db *bun.DB
+	db bun.IDB
 }
 
-func newOrganizationRepository(db *bun.DB) organizationRepository {
+func newOrganizationRepository(db bun.IDB) organizationRepository {
 	return &defaultOrganizationRepository{db: db}
+}
+
+func (r *defaultOrganizationRepository) WithTx(tx bun.Tx) organizationRepository {
+	return &defaultOrganizationRepository{db: tx}
 }
 
 func (r *defaultOrganizationRepository) Create(ctx context.Context, org *Organization) error {
 	_, err := r.db.NewInsert().Model(org).Exec(ctx)
-	return err
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return terrors.RecordAlreadyExists("organization already exists")
+		}
+
+		log.Error().Err(err).Str("org_id", org.ID).Msg("failed to insert organization")
+		return terrors.OperationFailed("failed to create organization")
+	}
+	return nil
 }
 
 func (r *defaultOrganizationRepository) FindOneByID(ctx context.Context, id string) (*Organization, error) {
 	var org Organization
 	err := r.db.NewSelect().Model(&org).Where("id = ?", id).Scan(ctx)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, terrors.RecordNotFound("organization not found")
+		}
+		log.Error().Err(err).Str("org_id", id).Msg("failed to query organization by id")
+		return nil, terrors.OperationFailed("failed to retrieve organization")
 	}
 	return &org, nil
 }
@@ -32,7 +55,11 @@ func (r *defaultOrganizationRepository) FindOneBySlug(ctx context.Context, slug 
 	var org Organization
 	err := r.db.NewSelect().Model(&org).Where("slug = ?", slug).Scan(ctx)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, terrors.RecordNotFound("organization not found")
+		}
+		log.Error().Err(err).Str("slug", slug).Msg("failed to query organization by slug")
+		return nil, terrors.OperationFailed("failed to retrieve organization")
 	}
 	return &org, nil
 }
@@ -47,7 +74,8 @@ func (r *defaultOrganizationRepository) FindAllMembershipsByOrganizationID(ctx c
 		Scan(ctx)
 
 	if err != nil {
-		return nil, err
+		log.Error().Err(err).Str("org_id", orgID).Msg("failed to query memberships by organization id")
+		return nil, terrors.OperationFailed("failed to retrieve organization memberships")
 	}
 	return memberships, nil
 }
@@ -62,7 +90,8 @@ func (r *defaultOrganizationRepository) FindAllMembershipsByIdentityID(ctx conte
 		Scan(ctx)
 
 	if err != nil {
-		return nil, err
+		log.Error().Err(err).Str("identity_id", identityID).Msg("failed to query memberships by identity id")
+		return nil, terrors.OperationFailed("failed to retrieve identity memberships")
 	}
 	return memberships, nil
 }
@@ -77,7 +106,11 @@ func (r *defaultOrganizationRepository) FindOldestMembershipsByIdentityID(ctx co
 		Scan(ctx)
 
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, terrors.RecordNotFound("membership not found")
+		}
+		log.Error().Err(err).Str("identity_id", identityID).Msg("failed to query oldest membership by identity id")
+		return nil, terrors.OperationFailed("failed to retrieve oldest membership")
 	}
 	return &membership, nil
 }

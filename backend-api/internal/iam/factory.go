@@ -9,7 +9,7 @@ import (
 )
 
 type Module struct {
-	SessionManager SessionManager
+	SessionIntrospectionService SessionIntrospectionService
 }
 
 func NewModule(
@@ -23,11 +23,11 @@ func NewModule(
 	verificationRepo := newVerificationRepository(db)
 	sessionRepo := newSessionRepository(db)
 
-	useCases := newAuthnUseCases(orgRepo, identityRepo, verificationRepo, sessionRepo, mail, hmacHasher)
-	sessionManager := newSessionManager(useCases)
-	_ = newAuthnController(mux, sessionManager, useCases)
+	authService := newAuthnService(orgRepo, identityRepo, verificationRepo, sessionRepo, mail, hmacHasher)
+	sessionService := newSessionIntrospectionService(sessionRepo, hmacHasher)
+	_ = newAuthnController(mux, sessionService, authService)
 
 	return &Module{
-		SessionManager: sessionManager,
+		SessionIntrospectionService: sessionService,
 	}
 }
