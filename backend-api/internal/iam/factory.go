@@ -9,7 +9,7 @@ import (
 )
 
 type Module struct {
-	SessionIntrospectionService SessionIntrospectionService
+	SessionIntrospector SessionIntrospectionService
 }
 
 func NewModule(
@@ -24,11 +24,13 @@ func NewModule(
 	sessionRepo := newSessionRepository(db)
 
 	authService := newAuthnService(orgRepo, identityRepo, verificationRepo, sessionRepo, mail, hmacHasher)
+	orgService := newOrgService(orgRepo)
 	sessionIntrospectionService := newSessionIntrospectionService(sessionRepo, hmacHasher)
 	sessionService := newDefaultSessionService(sessionRepo)
 	_ = newAuthnController(mux, sessionIntrospectionService, sessionService, authService)
+	_ = newOrgController(mux, sessionIntrospectionService, orgService)
 
 	return &Module{
-		SessionIntrospectionService: sessionIntrospectionService,
+		SessionIntrospector: sessionIntrospectionService,
 	}
 }

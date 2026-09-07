@@ -7,6 +7,7 @@ type TypeIdPrefix string
 const (
 	TypeIdPrefixIdentity     TypeIdPrefix = "id"
 	TypeIdPrefixOrganization TypeIdPrefix = "org"
+	TypeIdPrefixOrgSlug      TypeIdPrefix = "s"
 	TypeIdPrefixVerification TypeIdPrefix = "ver"
 )
 

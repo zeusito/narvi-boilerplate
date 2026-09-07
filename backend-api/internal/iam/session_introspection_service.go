@@ -47,6 +47,7 @@ func (s *DefaultSessionIntrospectionService) Introspect(ctx context.Context, tok
 		OrganizationName:     record.OrganizationName,
 		OrganizationSlug:     record.OrganizationSlug,
 		OrganizationLogo:     record.OrganizationLogo,
+		OrganizationKind:     record.OrganizationKind,
 		OrganizationRole:     record.OrganizationRole,
 	}
 }

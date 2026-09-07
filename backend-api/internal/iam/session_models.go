@@ -32,5 +32,6 @@ type SessionIntrospectionView struct {
 	OrganizationName  string    `bun:"organization_name"`
 	OrganizationSlug  string    `bun:"organization_slug"`
 	OrganizationLogo  string    `bun:"organization_logo"`
+	OrganizationKind  string    `bun:"organization_kind"`
 	OrganizationRole  string    `bun:"organization_role"`
 }

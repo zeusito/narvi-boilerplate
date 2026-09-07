@@ -21,6 +21,7 @@ type PrincipalClaims struct {
 	OrganizationName     string `json:"organizationName,omitempty"`
 	OrganizationSlug     string `json:"organizationSlug,omitempty"`
 	OrganizationLogo     string `json:"organizationLogo,omitempty"`
+	OrganizationKind     string `json:"organizationKind,omitempty"`
 	OrganizationRole     string `json:"organizationRole,omitempty"`
 }
 

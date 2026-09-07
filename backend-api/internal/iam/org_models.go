@@ -80,8 +80,8 @@ type OrganizationResponse struct {
 	Kind      OrganizationKind  `json:"kind"`
 	Logo      string            `json:"logo"`
 	State     OrganizationState `json:"state"`
-	CreatedAt time.Time         `json:"created_at"`
-	UpdatedAt time.Time         `json:"updated_at"`
+	CreatedAt string            `json:"createdAt"`
+	UpdatedAt string            `json:"updatedAt"`
 }
 
 type OrganizationListResponse struct {

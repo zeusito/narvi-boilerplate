@@ -24,7 +24,6 @@ func newAuthnController(mux *chi.Mux, sessionIntrospector authz.SessionIntrospec
 		sessionSvc:  sSvc,
 	}
 
-	// Public routes
 	mux.Group(func(r chi.Router) {
 		r.With(httprate.LimitBy(10, time.Minute, c.clientIPKey)).Post("/v1/auth/otp/send", c.handleSendOTP)
 		r.With(httprate.LimitBy(10, time.Minute, c.clientIPKey)).Post("/v1/auth/otp/verify", c.handleVerifyOTP)

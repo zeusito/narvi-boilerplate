@@ -13,17 +13,16 @@ var DefaultAuthzPolicy string
 
 // PrincipalInput represents the caller's context passed to OPA.
 type PrincipalInput struct {
-	IdentityID           string   `json:"identity_id"`
-	Email                string   `json:"email,omitempty"`
-	ActiveOrganizationID string   `json:"active_organization_id"`
-	Role                 string   `json:"role,omitempty"`
-	Permissions          []string `json:"permissions"`
+	IsAuthenticated        bool   `json:"isAuthenticated"`
+	ActiveOrganizationID   string `json:"activeOrganizationId"`
+	ActiveOrganizationKind string `json:"activeOrganizationKind"`
+	Role                   string `json:"role"`
 }
 
 // ResourceInput represents the target resource context passed to OPA.
 type ResourceInput struct {
 	Type           string `json:"type"`
-	OrganizationID string `json:"organization_id"`
+	OrganizationID string `json:"organizationId"`
 }
 
 // EvalInput encapsulates the full evaluation document provided to OPA.

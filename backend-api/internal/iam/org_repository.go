@@ -32,7 +32,7 @@ func (r *defaultOrganizationRepository) Create(ctx context.Context, org *Organiz
 			return terrors.RecordAlreadyExists("organization already exists")
 		}
 
-		log.Error().Err(err).Str("org_id", org.ID).Msg("failed to insert organization")
+		log.Ctx(ctx).Error().Err(err).Str("org_id", org.ID).Msg("failed to insert organization")
 		return terrors.OperationFailed("failed to create organization")
 	}
 	return nil
@@ -45,7 +45,7 @@ func (r *defaultOrganizationRepository) FindOneByID(ctx context.Context, id stri
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, terrors.RecordNotFound("organization not found")
 		}
-		log.Error().Err(err).Str("org_id", id).Msg("failed to query organization by id")
+		log.Ctx(ctx).Error().Err(err).Str("org_id", id).Msg("failed to query organization by id")
 		return nil, terrors.OperationFailed("failed to retrieve organization")
 	}
 	return &org, nil
@@ -58,10 +58,25 @@ func (r *defaultOrganizationRepository) FindOneBySlug(ctx context.Context, slug 
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, terrors.RecordNotFound("organization not found")
 		}
-		log.Error().Err(err).Str("slug", slug).Msg("failed to query organization by slug")
+		log.Ctx(ctx).Error().Err(err).Str("slug", slug).Msg("failed to query organization by slug")
 		return nil, terrors.OperationFailed("failed to retrieve organization")
 	}
 	return &org, nil
+}
+
+func (r *defaultOrganizationRepository) FindAll(ctx context.Context) ([]Organization, error) {
+	var orgs []Organization
+	err := r.db.NewSelect().Model(&orgs).
+		Limit(100).
+		Order("created_at DESC").
+		Scan(ctx)
+
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to query organizations")
+		return nil, terrors.OperationFailed("failed to retrieve organizations")
+	}
+
+	return orgs, nil
 }
 
 func (r *defaultOrganizationRepository) FindAllMembershipsByOrganizationID(ctx context.Context, orgID string) ([]OrganizationMembershipView, error) {
@@ -74,7 +89,7 @@ func (r *defaultOrganizationRepository) FindAllMembershipsByOrganizationID(ctx c
 		Scan(ctx)
 
 	if err != nil {
-		log.Error().Err(err).Str("org_id", orgID).Msg("failed to query memberships by organization id")
+		log.Ctx(ctx).Error().Err(err).Str("org_id", orgID).Msg("failed to query memberships by organization id")
 		return nil, terrors.OperationFailed("failed to retrieve organization memberships")
 	}
 	return memberships, nil
@@ -90,7 +105,7 @@ func (r *defaultOrganizationRepository) FindAllMembershipsByIdentityID(ctx conte
 		Scan(ctx)
 
 	if err != nil {
-		log.Error().Err(err).Str("identity_id", identityID).Msg("failed to query memberships by identity id")
+		log.Ctx(ctx).Error().Err(err).Str("identity_id", identityID).Msg("failed to query memberships by identity id")
 		return nil, terrors.OperationFailed("failed to retrieve identity memberships")
 	}
 	return memberships, nil
@@ -109,7 +124,7 @@ func (r *defaultOrganizationRepository) FindOldestMembershipsByIdentityID(ctx co
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, terrors.RecordNotFound("membership not found")
 		}
-		log.Error().Err(err).Str("identity_id", identityID).Msg("failed to query oldest membership by identity id")
+		log.Ctx(ctx).Error().Err(err).Str("identity_id", identityID).Msg("failed to query oldest membership by identity id")
 		return nil, terrors.OperationFailed("failed to retrieve oldest membership")
 	}
 	return &membership, nil

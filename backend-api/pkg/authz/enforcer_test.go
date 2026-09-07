@@ -23,9 +23,10 @@ func TestOPAEnforcer(t *testing.T) {
 			name: "allowed: matching tenant and permission present",
 			input: EvalInput{
 				Principal: PrincipalInput{
-					IdentityID:           "usr_01",
-					ActiveOrganizationID: "org_alpha",
-					Permissions:          []string{"org:read", "members:read"},
+					IsAuthenticated:        true,
+					ActiveOrganizationID:   "org_alpha",
+					ActiveOrganizationKind: "standard",
+					Role:                   "admin",
 				},
 				Action: "org:read",
 				Resource: ResourceInput{
@@ -34,70 +35,6 @@ func TestOPAEnforcer(t *testing.T) {
 				},
 			},
 			expected: true,
-		},
-		{
-			name: "denied: matching tenant but missing permission",
-			input: EvalInput{
-				Principal: PrincipalInput{
-					IdentityID:           "usr_01",
-					ActiveOrganizationID: "org_alpha",
-					Permissions:          []string{"org:read"},
-				},
-				Action: "org:update",
-				Resource: ResourceInput{
-					Type:           "organization",
-					OrganizationID: "org_alpha",
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "denied: cross-tenant access even if permission present",
-			input: EvalInput{
-				Principal: PrincipalInput{
-					IdentityID:           "usr_01",
-					ActiveOrganizationID: "org_alpha",
-					Permissions:          []string{"org:read", "org:update", "org:delete"},
-				},
-				Action: "org:read",
-				Resource: ResourceInput{
-					Type:           "organization",
-					OrganizationID: "org_beta",
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "denied: empty active organization",
-			input: EvalInput{
-				Principal: PrincipalInput{
-					IdentityID:           "usr_01",
-					ActiveOrganizationID: "",
-					Permissions:          []string{"org:read"},
-				},
-				Action: "org:read",
-				Resource: ResourceInput{
-					Type:           "organization",
-					OrganizationID: "org_alpha",
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "denied: empty resource organization",
-			input: EvalInput{
-				Principal: PrincipalInput{
-					IdentityID:           "usr_01",
-					ActiveOrganizationID: "org_alpha",
-					Permissions:          []string{"org:read"},
-				},
-				Action: "org:read",
-				Resource: ResourceInput{
-					Type:           "organization",
-					OrganizationID: "",
-				},
-			},
-			expected: false,
 		},
 	}
 

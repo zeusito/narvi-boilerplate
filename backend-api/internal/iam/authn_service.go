@@ -43,36 +43,36 @@ func newAuthnService(
 // SendOTP sends an OTP to the user's email address. It returns nil for non-existent emails
 // and cooldown violations to prevent account enumeration.
 func (s *defaultAuthService) SendOTP(ctx context.Context, req *SendOTPRequest) error {
-	log.Info().Str("email", req.Email).Msg("sending OTP to email")
+	log.Ctx(ctx).Info().Str("email", req.Email).Msg("sending OTP to email")
 
 	identity, err := s.identityRepo.FindActiveByEmail(ctx, req.Email)
 	if err != nil {
 		var terr *terrors.Terror
 		if errors.As(err, &terr) && terr.ErrCode == "RecordNotFound" {
-			log.Info().Str("email", req.Email).Msg("identity not found, ignoring to prevent enumeration")
+			log.Ctx(ctx).Info().Str("email", req.Email).Msg("identity not found, ignoring to prevent enumeration")
 			return nil
 		}
-		log.Error().Err(err).Str("email", req.Email).Msg("failed to find active identity by email")
+		log.Ctx(ctx).Error().Err(err).Str("email", req.Email).Msg("failed to find active identity by email")
 		return terrors.OperationFailed("failed to send verification code")
 	}
 
 	// Check 60-second cooldown on recent active verification
 	activeVerification, _ := s.verificationRepo.FindLatestActive(ctx, identity.ID, VerificationKindEmailOTP)
 	if activeVerification != nil && time.Since(activeVerification.CreatedAt) < 60*time.Second {
-		log.Warn().Str("identity_id", identity.ID).Msg("verification request too frequent")
+		log.Ctx(ctx).Warn().Str("identity_id", identity.ID).Msg("verification request too frequent")
 		return nil
 	}
 
 	// Invalidate any prior pending OTPs for this identity
 	if err := s.verificationRepo.DeleteAllForIdentityAndKind(ctx, identity.ID, VerificationKindEmailOTP); err != nil {
-		log.Error().Err(err).Str("identity_id", identity.ID).Msg("failed to delete prior OTPs for identity")
+		log.Ctx(ctx).Error().Err(err).Str("identity_id", identity.ID).Msg("failed to delete prior OTPs for identity")
 		return err
 	}
 
 	// Generate 6-digit OTP
 	code, err := toolbox.SecureRandomOTP()
 	if err != nil {
-		log.Error().Err(err).Msg("failed to generate OTP")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to generate OTP")
 		return terrors.OperationFailed("failed to generate verification code")
 	}
 	now := time.Now().UTC()
@@ -80,7 +80,7 @@ func (s *defaultAuthService) SendOTP(ctx context.Context, req *SendOTPRequest) e
 	// Hash OTP code using HMAC-SHA256
 	hashedCode, err := s.hmacHasher.Hash(code)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to hash verification code")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to hash verification code")
 		return terrors.OperationFailed("failed to hash verification code")
 	}
 
@@ -95,12 +95,12 @@ func (s *defaultAuthService) SendOTP(ctx context.Context, req *SendOTPRequest) e
 	}
 
 	if err := s.verificationRepo.Create(ctx, verification); err != nil {
-		log.Error().Err(err).Str("identity_id", identity.ID).Msg("failed to create verification")
+		log.Ctx(ctx).Error().Err(err).Str("identity_id", identity.ID).Msg("failed to create verification")
 		return err
 	}
 
 	if err := s.mailer.SendOTPCode(ctx, identity.Email, code); err != nil {
-		log.Error().Err(err).Str("identity_id", identity.ID).Msg("failed to dispatch verification email")
+		log.Ctx(ctx).Error().Err(err).Str("identity_id", identity.ID).Msg("failed to dispatch verification email")
 		return terrors.OperationFailed("failed to dispatch verification email")
 	}
 

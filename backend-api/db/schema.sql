@@ -169,6 +169,7 @@ CREATE VIEW public.session_introspection_view AS
     COALESCE(o.name, ''::character varying) AS organization_name,
     COALESCE(o.slug, ''::character varying) AS organization_slug,
     COALESCE(o.logo, ''::character varying) AS organization_logo,
+    COALESCE(o.kind, ''::character varying) AS organization_kind,
     COALESCE(om.member_role, ''::character varying) AS organization_role
    FROM (((public.identity_sessions s
      JOIN public.identities i ON (((i.id)::text = (s.identity_id)::text)))
@@ -311,14 +312,6 @@ ALTER TABLE ONLY public.identity_accounts
 
 ALTER TABLE ONLY public.identity_sessions
     ADD CONSTRAINT identity_sessions_identity_id_fkey FOREIGN KEY (identity_id) REFERENCES public.identities(id) ON DELETE CASCADE;
-
-
---
--- Name: identity_sessions identity_sessions_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.identity_sessions
-    ADD CONSTRAINT identity_sessions_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
 
 
 --
