@@ -8,18 +8,22 @@ import (
 )
 
 type ResendMailer struct {
-	enabled bool
-	from    string
-	client  *resend.Client
+	enabled        bool
+	from           string
+	client         *resend.Client
+	otpTemplate    string
+	inviteTemplate string
 }
 
 func NewResendMailer(emailConfigs configurer.EmailConfigurations) *ResendMailer {
 	client := resend.NewClient(emailConfigs.ApiKey)
 
 	return &ResendMailer{
-		enabled: emailConfigs.Enabled,
-		from:    emailConfigs.From,
-		client:  client,
+		enabled:        emailConfigs.Enabled,
+		from:           emailConfigs.From,
+		client:         client,
+		otpTemplate:    emailConfigs.OtpTemplate,
+		inviteTemplate: emailConfigs.InviteTemplate,
 	}
 }
 
@@ -33,7 +37,7 @@ func (r *ResendMailer) SendOTPCode(ctx context.Context, email, code string) erro
 		To:      []string{email},
 		Subject: "Your Sign-In Code",
 		Template: &resend.EmailTemplate{
-			Id:        "",
+			Id:        r.otpTemplate,
 			Variables: map[string]any{},
 		},
 	}
@@ -56,7 +60,7 @@ func (r *ResendMailer) SendInvitation(ctx context.Context, email, kind string) e
 		To:      []string{email},
 		Subject: "You have been invited",
 		Template: &resend.EmailTemplate{
-			Id:        "",
+			Id:        r.inviteTemplate,
 			Variables: map[string]any{},
 		},
 	}

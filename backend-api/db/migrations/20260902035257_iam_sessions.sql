@@ -8,8 +8,7 @@ create table if not exists identity_sessions (
     expires_at timestamptz not null default now() + interval '1 hour',
     created_at timestamptz not null default now(),
     primary key (id),
-    foreign key (identity_id) references identities(id) on delete cascade,
-    foreign key (organization_id) references organizations(id) on delete cascade
+    foreign key (identity_id) references identities(id) on delete cascade
 );
 
 create index if not exists idx_identity_sessions_identity_id on identity_sessions(identity_id);

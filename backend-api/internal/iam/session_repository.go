@@ -30,7 +30,7 @@ func (r *sessionRepo) Create(ctx context.Context, s *IdentitySession) error {
 		Exec(ctx)
 
 	if err != nil {
-		log.Error().Err(err).Str("identity_id", s.IdentityID).Msg("failed to insert session into database")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to insert session into database")
 		return terrors.OperationFailed("failed to create session")
 	}
 
@@ -50,7 +50,6 @@ func (r *sessionRepo) FindActiveSessionIntrospection(ctx context.Context, sessio
 			return nil, terrors.RecordNotFound("active session not found")
 		}
 
-		log.Error().Err(err).Msg("failed to query active session introspection")
 		return nil, terrors.OperationFailed("failed to retrieve session")
 	}
 
@@ -60,11 +59,11 @@ func (r *sessionRepo) FindActiveSessionIntrospection(ctx context.Context, sessio
 func (r *sessionRepo) RemoveBySessionID(ctx context.Context, sessionID string) error {
 	_, err := r.db.NewDelete().
 		Model((*IdentitySession)(nil)).
-		Where("session_id = ?", sessionID).
+		Where("id = ?", sessionID).
 		Exec(ctx)
 
 	if err != nil {
-		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to remove session")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to remove session")
 		return terrors.OperationFailed("failed to remove session")
 	}
 

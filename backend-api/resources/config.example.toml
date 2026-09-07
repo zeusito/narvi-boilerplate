@@ -21,3 +21,5 @@ hmac-secret = ""
 enabled = false
 from = ""
 api-key = ""
+otp-template = ""
+invite-template = ""

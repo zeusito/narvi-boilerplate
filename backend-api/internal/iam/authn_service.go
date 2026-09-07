@@ -111,27 +111,35 @@ func (s *defaultAuthService) SendOTP(ctx context.Context, req *SendOTPRequest) e
 func (s *defaultAuthService) VerifyOTP(ctx context.Context, req *VerifyOTPRequest) (*SignInResponse, error) {
 	now := time.Now().UTC()
 
-	log.Info().Str("email", req.Email).Msg("verifying OTP")
+	log.Ctx(ctx).Info().Str("email", req.Email).Msg("verifying OTP")
 
 	identity, err := s.identityRepo.FindActiveByEmail(ctx, req.Email)
 	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to find active identity by email")
 		return nil, terrors.UnAuthorized("invalid verification code")
 	}
 
 	v, err := s.verificationRepo.FindLatestActive(ctx, identity.ID, VerificationKindEmailOTP)
 	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to find latest active verification")
 		return nil, terrors.UnAuthorized("invalid verification code")
 	}
 
 	if v.Attempts >= 3 {
+		log.Ctx(ctx).Warn().Msg("verification attempts exceeded")
 		_ = s.verificationRepo.Delete(ctx, v.ID)
 		return nil, terrors.UnAuthorized("verification attempts exceeded, please request a new code")
 	}
 
 	// Verify the code against the stored hash
 	if !s.hmacHasher.Verify(req.Code, v.HashedCode) {
-		_ = s.verificationRepo.IncrementAttempts(ctx, v.ID)
+		err = s.verificationRepo.IncrementAttempts(ctx, v.ID)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("failed to increment verification attempts")
+			return nil, terrors.UnAuthorized("invalid verification code")
+		}
 		if v.Attempts+1 >= 3 {
+			log.Ctx(ctx).Warn().Msg("verification attempts exceeded")
 			_ = s.verificationRepo.Delete(ctx, v.ID)
 			return nil, terrors.UnAuthorized("verification attempts exceeded, please request a new code")
 		}
@@ -139,7 +147,11 @@ func (s *defaultAuthService) VerifyOTP(ctx context.Context, req *VerifyOTPReques
 	}
 
 	// Code is valid: delete verification record
-	_ = s.verificationRepo.Delete(ctx, v.ID)
+	err = s.verificationRepo.Delete(ctx, v.ID)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to delete verification")
+		return nil, terrors.UnAuthorized("invalid verification code")
+	}
 
 	// Mark email verified
 	_ = s.identityRepo.UpdateEmailVerifiedAt(ctx, identity.ID, now)

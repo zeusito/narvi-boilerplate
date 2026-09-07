@@ -5,6 +5,8 @@ import (
 	"backend-api/pkg/toolbox/hasher"
 	"context"
 	"fmt"
+
+	"github.com/rs/zerolog/log"
 )
 
 type DefaultSessionIntrospectionService struct {
@@ -27,6 +29,11 @@ func (s *DefaultSessionIntrospectionService) Introspect(ctx context.Context, tok
 
 	record, err := s.sessionRepo.FindActiveSessionIntrospection(ctx, hashedToken)
 	if err != nil {
+		return &authz.PrincipalClaims{IsAuthenticated: false}
+	}
+
+	if record.IdentityState != "active" {
+		log.Ctx(ctx).Warn().Msgf("identity '%s' is not active", record.IdentityID)
 		return &authz.PrincipalClaims{IsAuthenticated: false}
 	}
 

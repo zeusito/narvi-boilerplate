@@ -28,7 +28,7 @@ func newAuthnController(mux *chi.Mux, sessionIntrospector authz.SessionIntrospec
 	mux.Group(func(r chi.Router) {
 		r.With(httprate.LimitBy(10, time.Minute, c.clientIPKey)).Post("/v1/auth/otp/send", c.handleSendOTP)
 		r.With(httprate.LimitBy(10, time.Minute, c.clientIPKey)).Post("/v1/auth/otp/verify", c.handleVerifyOTP)
-		r.With(authz.RequireAuthMiddleware(sessionIntrospector)).Get("/v1/auth/instrospect", c.handleIntrospect)
+		r.With(authz.RequireAuthMiddleware(sessionIntrospector)).Get("/v1/auth/introspect", c.handleIntrospect)
 		r.With(authz.RequireAuthMiddleware(sessionIntrospector)).Delete("/v1/auth/logout", c.handleLogout)
 	})
 

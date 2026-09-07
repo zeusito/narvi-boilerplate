@@ -37,9 +37,11 @@ type IamConfigurations struct {
 }
 
 type EmailConfigurations struct {
-	Enabled bool   `koanf:"enabled"`
-	From    string `koanf:"from"`
-	ApiKey  string `koanf:"api-key"`
+	Enabled        bool   `koanf:"enabled"`
+	From           string `koanf:"from"`
+	ApiKey         string `koanf:"api-key"`
+	OtpTemplate    string `koanf:"otp-template"`
+	InviteTemplate string `koanf:"invite-template"`
 }
 
 // LoadConfigurations Loads configurations depending upon the environment
