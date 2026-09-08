@@ -24,12 +24,18 @@ export const actions: Actions = {
 			});
 		}
 
-		const email = validation.data.email.toLowerCase().trim();
-		await signInWithOneTimePassword(email);
+		const resp = await signInWithOneTimePassword(validation.data.email);
+		if (!resp.success) {
+			logger.error('Failed to send OTP: %s', resp.error);
+			return fail(400, {
+				success: false,
+				error: 'Could not send code. Try again'
+			});
+		}
 
 		return {
 			success: true,
-			email,
+			email: validation.data.email,
 			step: 2
 		};
 	},
@@ -65,10 +71,10 @@ export const actions: Actions = {
 			userAgent
 		);
 
-		if (!resp.success) {
+		if (!resp.success || !resp.data?.token) {
 			return fail(400, {
 				success: false,
-				error: 'Invalid OTP.'
+				error: 'Invalid Credentials.'
 			});
 		}
 
@@ -78,7 +84,7 @@ export const actions: Actions = {
 		cookies.set('session', resp.data!.token, {
 			path: '/',
 			maxAge: 60 * 60 * 24, // 1 day
-			httpOnly: isProduction,
+			httpOnly: true,
 			sameSite: 'lax',
 			secure: isProduction
 		});
