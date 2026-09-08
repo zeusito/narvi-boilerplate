@@ -47,7 +47,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Error initializing HMAC hasher")
 	}
 
-	// Controllers and routes
+	// Modules
 	_ = healthcheck.NewModule(myRouter.Mux)
 	_ = iam.NewModule(myRouter.Mux, dbPool.Conn, mailService, hmacHasher)
 

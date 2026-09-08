@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/resend/resend-go/v4"
+	"github.com/rs/zerolog/log"
 )
 
 type ResendMailer struct {
@@ -29,6 +30,7 @@ func NewResendMailer(emailConfigs configurer.EmailConfigurations) *ResendMailer 
 
 func (r *ResendMailer) SendOTPCode(ctx context.Context, email, code string) error {
 	if !r.enabled {
+		log.Ctx(ctx).Warn().Msgf("mailer is disabled, email: %s code: %s", email, code)
 		return nil
 	}
 
@@ -37,8 +39,10 @@ func (r *ResendMailer) SendOTPCode(ctx context.Context, email, code string) erro
 		To:      []string{email},
 		Subject: "Your Sign-In Code",
 		Template: &resend.EmailTemplate{
-			Id:        r.otpTemplate,
-			Variables: map[string]any{},
+			Id: r.otpTemplate,
+			Variables: map[string]any{
+				"code": code,
+			},
 		},
 	}
 
@@ -52,6 +56,7 @@ func (r *ResendMailer) SendOTPCode(ctx context.Context, email, code string) erro
 
 func (r *ResendMailer) SendInvitation(ctx context.Context, email, kind string) error {
 	if !r.enabled {
+		log.Ctx(ctx).Warn().Msgf("mailer is disabled, skipping sending invitation to %s", email)
 		return nil
 	}
 
