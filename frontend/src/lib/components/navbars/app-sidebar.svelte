@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import { UsersRoundIcon, Library, Building, CogIcon, House } from '@lucide/svelte';
+	import { UsersRoundIcon, House } from '@lucide/svelte';
 	import AppUser from './app-user.svelte';
 	import { page } from '$app/state';
 

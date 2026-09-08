@@ -10,7 +10,7 @@
 
 <Sidebar.Provider>
 	<AppSidebar
-		userName={data.claims.subjectName}
+		userName={data.claims.fullName}
 		orgName={data.claims.organizationName ?? ''}
 		orgSlug={data.claims.organizationSlug ?? ''}
 	/>
