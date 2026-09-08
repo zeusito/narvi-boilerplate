@@ -27,12 +27,13 @@ type PrincipalClaims struct {
 
 // ExtractClaimsFromContext retrieves the PrincipalClaims stored in the context.
 func ExtractClaimsFromContext(ctx context.Context) PrincipalClaims {
-	claims, ok := ctx.Value(PrincipalClaimsKey).(PrincipalClaims)
-	if !ok {
-		return PrincipalClaims{IsAuthenticated: false}
+	if ctx != nil {
+		if claims, ok := ctx.Value(PrincipalClaimsKey).(*PrincipalClaims); ok && claims != nil {
+			return *claims
+		}
 	}
 
-	return claims
+	return PrincipalClaims{IsAuthenticated: false}
 }
 
 // AddClaimsToContext stores the PrincipalClaims in the provided context.
