@@ -38,6 +38,26 @@ func (r *defaultOrganizationRepository) Create(ctx context.Context, org *Organiz
 	return nil
 }
 
+func (r *defaultOrganizationRepository) Update(ctx context.Context, org *Organization) error {
+	res, err := r.db.NewUpdate().Model(org).Where("id = ?", org.ID).Exec(ctx)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return terrors.RecordAlreadyExists("organization already exists")
+		}
+
+		log.Ctx(ctx).Error().Err(err).Str("org_id", org.ID).Msg("failed to update organization")
+		return terrors.OperationFailed("failed to update organization")
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return terrors.RecordNotFound("organization not found")
+	}
+
+	return nil
+}
+
 func (r *defaultOrganizationRepository) FindOneByID(ctx context.Context, id string) (*Organization, error) {
 	var org Organization
 	err := r.db.NewSelect().Model(&org).Where("id = ?", id).Scan(ctx)

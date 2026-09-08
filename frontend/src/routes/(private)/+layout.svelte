@@ -13,6 +13,7 @@
 		userName={data.claims.fullName}
 		orgName={data.claims.organizationName ?? ''}
 		orgSlug={data.claims.organizationSlug ?? ''}
+		orgKind={data.claims.organizationKind ?? ''}
 	/>
 	<Sidebar.Inset>
 		<AppHeader orgName={data.claims.organizationName} />

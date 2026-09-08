@@ -38,4 +38,12 @@ export class ClaimsService {
 	public isAuthenticated(): boolean {
 		return this.claims.isAuthenticated;
 	}
+
+	public isManagementAdmin(): boolean {
+		return (
+			this.claims.isAuthenticated &&
+			this.claims.organizationKind === 'management' &&
+			this.claims.organizationRole === 'admin'
+		);
+	}
 }

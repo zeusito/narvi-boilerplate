@@ -73,6 +73,12 @@ type CreateOrganizationRequest struct {
 	Kind OrganizationKind `json:"kind" validate:"required,oneof=standard management"`
 }
 
+type UpdateOrganizationRequest struct {
+	Name  *string            `json:"name" validate:"omitempty,min=3,max=255"`
+	Logo  *string            `json:"logo" validate:"omitempty,max=500"`
+	State *OrganizationState `json:"state" validate:"omitempty,oneof=active suspended"`
+}
+
 type OrganizationResponse struct {
 	ID        string            `json:"id"`
 	Name      string            `json:"name"`

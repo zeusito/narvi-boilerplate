@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import { UsersRoundIcon, House } from '@lucide/svelte';
+	import { UsersRoundIcon, House, Building2 } from '@lucide/svelte';
 	import AppUser from './app-user.svelte';
 	import { page } from '$app/state';
 
@@ -8,6 +8,7 @@
 		userName: string;
 		orgSlug: string;
 		orgName: string;
+		orgKind?: string;
 	};
 
 	let props: Props = $props();
@@ -17,6 +18,8 @@
 	const items = {
 		orgActions: [{ title: 'Team', url: buildOrgUrl('/team'), icon: UsersRoundIcon }]
 	};
+
+	const isManagement = $derived(props.orgKind === 'management');
 </script>
 
 <Sidebar.Root collapsible="offcanvas" variant="inset">
@@ -62,6 +65,25 @@
 				{/if}
 			</Sidebar.GroupContent>
 		</Sidebar.Group>
+		{#if isManagement}
+			<Sidebar.Group>
+				<Sidebar.GroupLabel>Management</Sidebar.GroupLabel>
+				<Sidebar.GroupContent>
+					<Sidebar.Menu>
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton isActive={page.url.pathname.startsWith('/management/orgs')}>
+								{#snippet child({ props })}
+									<a href="/management/orgs" {...props}>
+										<Building2 />
+										<span>Organizations</span>
+									</a>
+								{/snippet}
+							</Sidebar.MenuButton>
+						</Sidebar.MenuItem>
+					</Sidebar.Menu>
+				</Sidebar.GroupContent>
+			</Sidebar.Group>
+		{/if}
 	</Sidebar.Content>
 	<Sidebar.Footer>
 		<AppUser userName={props.userName} orgName={props.orgName} />

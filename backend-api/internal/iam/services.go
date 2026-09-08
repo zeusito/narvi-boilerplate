@@ -22,6 +22,7 @@ type sessionService interface {
 
 type orgService interface {
 	Create(ctx context.Context, req *CreateOrganizationRequest) (*OrganizationResponse, error)
+	Update(ctx context.Context, id string, req *UpdateOrganizationRequest) (*OrganizationResponse, error)
 	GetById(ctx context.Context, id string) (*OrganizationResponse, error)
 	GetAll(ctx context.Context) *OrganizationListResponse
 }

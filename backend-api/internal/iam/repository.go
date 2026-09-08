@@ -10,6 +10,7 @@ import (
 type organizationRepository interface {
 	WithTx(tx bun.Tx) organizationRepository
 	Create(ctx context.Context, org *Organization) error
+	Update(ctx context.Context, org *Organization) error
 	FindOneByID(ctx context.Context, id string) (*Organization, error)
 	FindOneBySlug(ctx context.Context, slug string) (*Organization, error)
 	FindAll(ctx context.Context) ([]Organization, error)

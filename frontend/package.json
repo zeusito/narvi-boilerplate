@@ -58,7 +58,7 @@
 	"packageManager": "pnpm@12.3.4",
 	"devEngines": {
 		"runtime": {
-			"name": "nodejs",
+			"name": "node",
 			"version": "^24.19.0"
 		}
 	}

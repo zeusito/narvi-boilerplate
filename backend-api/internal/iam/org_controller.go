@@ -19,9 +19,10 @@ func newOrgController(mux *chi.Mux, sessionIntrospector authz.SessionIntrospecto
 	// Protected routes
 	mux.Group(func(r chi.Router) {
 		r.Use(authz.RequireAuthMiddleware(sessionIntrospector))
-		r.Post("/v1/admin/organizations", c.createOrganization)
-		r.Get("/v1/admin/organizations", c.listOrganizations)
-		r.Get("/v1/admin/organizations/{id}", c.getOrganizationByID)
+		r.Post("/v1/management/organizations", c.createOrganization)
+		r.Get("/v1/management/organizations", c.listOrganizations)
+		r.Get("/v1/management/organizations/{id}", c.getOrganizationByID)
+		r.Patch("/v1/management/organizations/{id}", c.updateOrganization)
 	})
 
 	return c
@@ -54,6 +55,25 @@ func (c *defaultOrgController) getOrganizationByID(w http.ResponseWriter, r *htt
 	orgID := chi.URLParam(r, "id")
 
 	resp, err := c.orgSvc.GetById(r.Context(), orgID)
+	if err != nil {
+		router.RenderError(r.Context(), w, err)
+		return
+	}
+
+	router.RenderJSON(r.Context(), w, http.StatusOK, resp)
+}
+
+func (c *defaultOrgController) updateOrganization(w http.ResponseWriter, r *http.Request) {
+	orgID := chi.URLParam(r, "id")
+
+	body := new(UpdateOrganizationRequest)
+	if err := router.BindBody(r, body); err != nil {
+		log.Ctx(r.Context()).Error().Err(err).Msg("Failed to bind request body")
+		router.RenderError(r.Context(), w, err)
+		return
+	}
+
+	resp, err := c.orgSvc.Update(r.Context(), orgID, body)
 	if err != nil {
 		router.RenderError(r.Context(), w, err)
 		return

@@ -46,6 +46,51 @@ func (s *defaultOrgService) Create(ctx context.Context, req *CreateOrganizationR
 		ID:        record.ID,
 		Name:      record.Name,
 		Slug:      record.Slug,
+		Kind:      record.Kind,
+		Logo:      record.Logo,
+		State:     record.State,
+		CreatedAt: record.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: record.UpdatedAt.Format(time.RFC3339),
+	}, nil
+}
+
+func (s *defaultOrgService) Update(ctx context.Context, id string, req *UpdateOrganizationRequest) (*OrganizationResponse, error) {
+	log.Ctx(ctx).Info().Msgf("Updating organization with id %s", id)
+
+	if req.Name == nil && req.Logo == nil && req.State == nil {
+		return nil, terrors.PreconditionFailed("no fields to update")
+	}
+
+	record, err := s.orgRepo.FindOneByID(ctx, id)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to get organization for update")
+		return nil, err
+	}
+
+	if req.Name != nil {
+		record.Name = *req.Name
+	}
+	if req.Logo != nil {
+		record.Logo = *req.Logo
+	}
+	if req.State != nil {
+		record.State = *req.State
+	}
+	record.UpdatedAt = time.Now().UTC()
+
+	if err := s.orgRepo.Update(ctx, record); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("failed to update organization")
+		return nil, err
+	}
+
+	log.Ctx(ctx).Info().Msg("Organization updated successfully")
+
+	return &OrganizationResponse{
+		ID:        record.ID,
+		Name:      record.Name,
+		Slug:      record.Slug,
+		Kind:      record.Kind,
+		Logo:      record.Logo,
 		State:     record.State,
 		CreatedAt: record.CreatedAt.Format(time.RFC3339),
 		UpdatedAt: record.UpdatedAt.Format(time.RFC3339),
@@ -65,6 +110,8 @@ func (s *defaultOrgService) GetById(ctx context.Context, id string) (*Organizati
 		ID:        record.ID,
 		Name:      record.Name,
 		Slug:      record.Slug,
+		Kind:      record.Kind,
+		Logo:      record.Logo,
 		State:     record.State,
 		CreatedAt: record.CreatedAt.Format(time.RFC3339),
 		UpdatedAt: record.UpdatedAt.Format(time.RFC3339),
@@ -86,6 +133,8 @@ func (s *defaultOrgService) GetAll(ctx context.Context) *OrganizationListRespons
 			ID:        record.ID,
 			Name:      record.Name,
 			Slug:      record.Slug,
+			Kind:      record.Kind,
+			Logo:      record.Logo,
 			State:     record.State,
 			CreatedAt: record.CreatedAt.Format(time.RFC3339),
 			UpdatedAt: record.UpdatedAt.Format(time.RFC3339),
