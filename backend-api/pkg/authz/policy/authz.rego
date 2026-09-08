@@ -1,19 +1,17 @@
 package authz
 
-import future.keywords.in
-
 default allow := false
 
 # Check if principal is authenticated
 is_authenticated if {
-	input.principal.is_authenticated == true
+	input.principal.isAuthenticated == true
 }
 
 # 1. Management Admin Rule:
 # Must be authenticated, active org kind must be "management", and member role must be "admin"
 is_management_admin if {
 	is_authenticated
-	input.principal.active_organization_kind == "management"
+	input.principal.activeOrganizationKind == "management"
 	input.principal.role == "admin"
 }
 
@@ -23,17 +21,15 @@ allow if {
 	input.resource.type == "management"
 }
 
-# Enforce tenant boundary and granular permissions for normal tenant operations
+# Enforce tenant boundary for normal tenant operations.
+# Permissions were removed for now, so any authenticated member of the
+# matching tenant is allowed.
 tenant_match if {
-	input.principal.active_organization_id != ""
-	input.principal.active_organization_id == input.resource.organization_id
-}
-
-has_permission if {
-	input.action in input.principal.permissions
+	input.principal.activeOrganizationId != ""
+	input.principal.activeOrganizationId == input.resource.organizationId
 }
 
 allow if {
+	is_authenticated
 	tenant_match
-	has_permission
 }
