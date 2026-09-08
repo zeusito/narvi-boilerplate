@@ -1,5 +1,5 @@
 [server]
-port = ":3000"
+port = "3000"
 
 [database]
 enabled = false
@@ -12,13 +12,14 @@ pool-size = 1
 log-queries = false
 
 [iam]
-dev-mode = false
 base-url = "http://localhost:3000"
-oauth-provider-domain = ""
-oauth-client-id = ""
-oauth-client-secret = "" 
-oauth-m2m-client-id = ""
-oauth-m2m-client-secret = "" 
 
 # Check Makefile generate-hmac-key command to generate this key
 hmac-secret = ""
+
+[email]
+enabled = false
+from = ""
+api-key = ""
+otp-template = ""
+invite-template = ""

@@ -2,14 +2,18 @@ package main
 
 import (
 	"backend-api/internal/healthcheck"
+	"backend-api/internal/iam"
 	"backend-api/pkg/configurer"
+	"backend-api/pkg/database"
 	"backend-api/pkg/logger"
+	"backend-api/pkg/mailer"
 	"backend-api/pkg/router"
+	"backend-api/pkg/toolbox/hasher"
 	"context"
 	"flag"
 	"os"
 	"os/signal"
-	"syscall"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -29,15 +33,42 @@ func main() {
 	}
 
 	// Init Http router
-	myRouter := router.NewRouter()
+	myRouter := router.NewChiRouter(configStore.Server)
 
-	// Controllers and routes
+	// Database connection
+	dbPool := database.MustCreatePooledConnection(configStore.Database)
+
+	// Mailer
+	mailService := mailer.NewResendMailer(configStore.Email)
+
+	// Hasher
+	hmacHasher, err := hasher.NewHmacSHA256(configStore.Iam.HmacSecret)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error initializing HMAC hasher")
+	}
+
+	// Modules
 	_ = healthcheck.NewModule(myRouter.Mux)
+	_ = iam.NewModule(myRouter.Mux, dbPool.Conn, mailService, hmacHasher)
 
-	// Create a context that is canceled on SIGINT or SIGTERM
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	// Start server in background
+	go myRouter.Start()
 
-	// Start the server
-	myRouter.Start(ctx, configStore.Server.Port)
+	// Graceful shutdown
+	gracefulShutdown(myRouter)
+}
+
+func gracefulShutdown(myRouter *router.ChiRouter) {
+	// Wait for the interrupt signal to gracefully shut down the server with a timeout of 10 seconds.
+	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	// Signal acquired, starting to shut down all systems
+	log.Warn().Msg("Shutting down gracefully...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	myRouter.Shutdown(ctx)
 }

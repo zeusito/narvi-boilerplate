@@ -13,6 +13,7 @@ type Configurations struct {
 	Server   ServerConfigurations   `koanf:"server"`
 	Database DatabaseConfigurations `koanf:"database"`
 	Iam      IamConfigurations      `koanf:"iam"`
+	Email    EmailConfigurations    `koanf:"email"`
 }
 
 type ServerConfigurations struct {
@@ -31,15 +32,16 @@ type DatabaseConfigurations struct {
 }
 
 type IamConfigurations struct {
-	DevMode              bool   `koanf:"dev-mode"`
-	BaseURL              string `koanf:"base-url"`
-	HmacSecret           string `koanf:"hmac-secret"`
-	OAuthProviderDomain  string `koanf:"oauth-provider-domain"`
-	OAuthClientID        string `koanf:"oauth-client-id"`
-	OAuthClientSecret    string `koanf:"oauth-client-secret"`
-	OAuthRedirectURI     string `koanf:"oauth-redirect-uri"`
-	OAuthM2MClientID     string `koanf:"oauth-m2m-client-id"`
-	OAuthM2MClientSecret string `koanf:"oauth-m2m-client-secret"`
+	BaseURL    string `koanf:"base-url"`
+	HmacSecret string `koanf:"hmac-secret"`
+}
+
+type EmailConfigurations struct {
+	Enabled        bool   `koanf:"enabled"`
+	From           string `koanf:"from"`
+	ApiKey         string `koanf:"api-key"`
+	OtpTemplate    string `koanf:"otp-template"`
+	InviteTemplate string `koanf:"invite-template"`
 }
 
 // LoadConfigurations Loads configurations depending upon the environment

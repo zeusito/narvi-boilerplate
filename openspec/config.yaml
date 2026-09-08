@@ -1,5 +1,25 @@
 schema: spec-driven
 
+# Project context
+# This is shown to AI when creating and updating OpenSpec artifacts (proposal, specs, design, tasks).
+context: |
+  Architecture & Tech Stack:
+  - Monorepo structure:
+    * backend-api: Go 1.27+, Chi router, Bun ORM, Zerolog, PostgreSQL 18.
+    * frontend-hub: SvelteKit 2, Svelte 5 (runes: $state, $derived, $props), TypeScript, Tailwind CSS v4, shadcn-svelte.
+
+# Per-artifact rules
+rules:
+  proposal:
+    - Specify impact across both backend-api and frontend-hub where applicable
+    - Include architectural boundaries and permission implications
+    - Include a "Non-goals" section to clarify what is out of scope
+    - If the proposal is too large, let the user know and suggest breaking it into smaller proposals
+  tasks:
+    - Group tasks by component (e.g. DB Migrations, Backend API, Frontend Gateway/UI)
+    - Keep tasks testable and ordered by dependency
+    - Break tasks into chunks of max 2 hours
+
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.

@@ -1,19 +1,24 @@
 package healthcheck
 
-import "github.com/labstack/echo/v5"
+import (
+	"backend-api/pkg/router"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+)
 
 type healthCheckController struct {
 	// Add any fields or dependencies required for the health check
 }
 
-func newHealthCheckController(mux *echo.Echo) *healthCheckController {
+func newHealthCheckController(mux *chi.Mux) *healthCheckController {
 	c := &healthCheckController{}
 
-	mux.GET("/health/liveness", c.handleLiveness)
+	mux.Get("/health/liveness", c.handleLiveness)
 
 	return c
 }
 
-func (c *healthCheckController) handleLiveness(ctx *echo.Context) error {
-	return ctx.JSON(200, map[string]string{"status": "ok"})
+func (c *healthCheckController) handleLiveness(w http.ResponseWriter, req *http.Request) {
+	router.RenderJSON(req.Context(), w, http.StatusOK, router.DefaultSuccessResponseBody())
 }
